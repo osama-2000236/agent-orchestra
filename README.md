@@ -99,8 +99,8 @@ Read this table with three cautions:
   the lead, and the lead verifies every core fix. Four of ten Haiku core-fix tasks needed a rework round, and each was
   caught in review.
 - **The lead's own row is thin.** It has two tasks. Its default comes from the rule, not from the evidence.
-- **The second vendor's score is not higher.** On `review-core` it is 0.875 against Haiku's 0.857, which is inside the
-  near-tie band. `pick` therefore returns the cheaper model. The second vendor is still assigned to money and permission
+- **The second vendor's score is only slightly higher.** On `review-core` it is 0.875 against Haiku's 0.857, which is
+  inside the near-tie band. `pick` therefore returns the cheaper model. The second vendor is still assigned to money and permission
   diffs, because it finds different defects.
 
 ## The loop
