@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" role="img" aria-labelledby="routing-title routing-desc">
+  <title id="routing-title">Role routing</title>
+  <desc id="routing-desc">Eight roles on the left are routed to three lanes on the right. Implement-core and diagnose go to the lead. Scout, test-write, implement-ui, review-ui and research go to cheap workers. Review-core goes to cheap workers, and to a second vendor for money and permission diffs.</desc>
+  <rect width="1000" height="600" fill="#F8FAFC"/>
+
+  <text x="40" y="52" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#0F172A">Each role goes to the model with the best verified record</text>
+
+  <!-- connectors, drawn first so the boxes sit on top -->
+  <g fill="none" stroke-width="2.5">
+    <line x1="300" y1="122" x2="700" y2="140" stroke="#1D4ED8"/>
+    <line x1="300" y1="178" x2="700" y2="140" stroke="#1D4ED8"/>
+    <line x1="300" y1="234" x2="700" y2="290" stroke="#0F766E"/>
+    <line x1="300" y1="290" x2="700" y2="290" stroke="#0F766E"/>
+    <line x1="300" y1="346" x2="700" y2="290" stroke="#0F766E"/>
+    <line x1="300" y1="402" x2="700" y2="290" stroke="#0F766E"/>
+    <line x1="300" y1="458" x2="700" y2="290" stroke="#0F766E"/>
+    <line x1="300" y1="402" x2="700" y2="440" stroke="#92400E" stroke-dasharray="8 6"/>
+  </g>
+
+  <!-- roles -->
+  <g font-family="Consolas, Menlo, monospace" font-size="18" fill="#0F172A">
+    <rect x="40" y="100" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="128">implement-core</text>
+    <rect x="40" y="156" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="184">diagnose</text>
+    <rect x="40" y="212" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="240">scout</text>
+    <rect x="40" y="268" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="296">test-write</text>
+    <rect x="40" y="324" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="352">implement-ui</text>
+    <rect x="40" y="380" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="408">review-core</text>
+    <rect x="40" y="436" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="464">review-ui</text>
+    <rect x="40" y="492" width="260" height="44" rx="8" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="60" y="520">research</text>
+  </g>
+
+  <!-- lanes -->
+  <g font-family="Segoe UI, Inter, Arial, sans-serif" fill="#FFFFFF">
+    <rect x="700" y="90" width="270" height="100" rx="12" fill="#1D4ED8"/>
+    <text x="720" y="124" font-size="20" font-weight="700">Lead (opus)</text>
+    <text x="720" y="150" font-size="15">decides, verifies, core money</text>
+    <text x="720" y="172" font-size="15">and permission logic</text>
+
+    <rect x="700" y="240" width="270" height="100" rx="12" fill="#0F766E"/>
+    <text x="720" y="274" font-size="20" font-weight="700">Cheap workers (haiku)</text>
+    <text x="720" y="300" font-size="15">scout, tests, implementation</text>
+    <text x="720" y="322" font-size="15">review; lead verifies all claims</text>
+
+    <rect x="700" y="390" width="270" height="100" rx="12" fill="#92400E"/>
+    <text x="720" y="424" font-size="20" font-weight="700">Second vendor (codex)</text>
+    <text x="720" y="450" font-size="15">read-only review, pinned commit,</text>
+    <text x="720" y="472" font-size="15">money and permission diffs</text>
+  </g>
+
+  <text x="40" y="572" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="16" fill="#334155">Solid line: default route. Dashed line: second vendor, money and permission diffs only.</text>
+</svg>
