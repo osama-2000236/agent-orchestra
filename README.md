@@ -5,7 +5,7 @@
 
 Model Orchestra reviews an application section by section and coordinates AI workers by role, checked evidence and configurable model, effort and budget choices. A lead model verifies findings and fixes; independent reviewers provide another view before the project's release gate.
 
-Use inexpensive workers where their output is easy to verify. Keep high-risk judgment with the lead. The goal is good complete-task results at lower measured cost, not a promise that one model is always best or cheapest.
+Use inexpensive workers where their output is easy to verify. Keep high-risk judgment with the lead. Compare complete-task quality and total cost before choosing a default; no model is promised to be always best or cheapest.
 
 ## Install
 
@@ -13,21 +13,23 @@ The public repository is **ai-review-orchestra**. The skill name remains **model
 
 ```bash
 git clone https://github.com/osama-2000236/ai-review-orchestra
-mkdir -p ~/.claude/skills
-cp -r ai-review-orchestra/skill ~/.claude/skills/model-orchestra
+mkdir -p ~/.claude/skills/model-orchestra
+cp -r ai-review-orchestra/skill/. ~/.claude/skills/model-orchestra/
 ```
 
 Windows PowerShell:
 
 ```powershell
 git clone https://github.com/osama-2000236/ai-review-orchestra
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills" | Out-Null
-Copy-Item -Recurse ai-review-orchestra\skill "$env:USERPROFILE\.claude\skills\model-orchestra"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\model-orchestra" | Out-Null
+Copy-Item -Recurse -Force ai-review-orchestra\skill\* "$env:USERPROFILE\.claude\skills\model-orchestra"
 ```
 
-For Codex or another skill-capable host, copy `skill/` into its discoverable skills directory as `model-orchestra`. Native tool names and model options differ; the skill discovers the actual runtime. It does not assume every host can launch a Claude subagent.
+For Codex, copy `skill/` contents to `~/.codex/skills/model-orchestra/`; the optional `review-agent/` distribution keeps read-only diff review as its default and adds explicit whole-app/coordinating modes. Native tool names and model options differ; the skill discovers the actual runtime. It does not assume every host can launch a Claude subagent.
 
-Invoke `$model-orchestra` or ask for a section-by-section application review using Model Orchestra. No installed `review-agent` alias was found during this update, so this project does not claim that an existing alias was changed.
+To install the compatible reviewer, create `~/.codex/skills/review-agent/` and copy `review-agent/` contents into it. If your host already supplies a reviewer, locate its real source and preserve a backup before an owner-authorized update; do not create a second conflicting alias blindly.
+
+Invoke `$model-orchestra` in Codex or `/model-orchestra` in Claude Code, or ask for a section-by-section application review using Model Orchestra. Use `$review-agent` in Codex for the compatible reviewer entry. Installation/update copies files; an invocation writes checked outcomes only to your local ledger. Back up custom instructions before upgrading and merge them deliberately.
 
 ## A whole-app review covers more than functionality
 
@@ -43,6 +45,8 @@ node skill/scripts/pair.mjs pick review-ui \
 ```
 
 `pair.mjs` is offline: it plans without making model calls. Refresh the source-dated pricing in your local configuration, mark unsupported models unavailable, and pass token-shape or per-task budget options. Use runtime spend caps for actual calls. The planner keeps high-risk decisions with the lead and can use exact model/effort outcomes from your ignored local ledger.
+
+The example is an ordinary UI trial whose suggestions the lead can check cheaply. Security, permissions or accounting verdicts require `--risk high` and stay with the lead. Copy the config locally, open its cited provider pricing page, update each per-million token rate and `checkedAt`, and review the long-context/cache tiers. The default private ledger is `<installed-skill>/data/ledger.jsonl`; override it with `MODEL_ORCHESTRA_LEDGER` or `--ledger`.
 
 - Historical examples do not prove a new model version's quality and are not used for personal routing.
 - An unknown cost is not treated as cheap. API-equivalent estimates, subscription quota and actual invoices are distinct.

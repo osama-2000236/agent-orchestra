@@ -18,7 +18,7 @@ Get-Content -Raw -LiteralPath packet.md | claude --print --agents agents.json --
 
 The lead can instead enable Agent and ask the main CLI to orchestrate two named workers using `--agents`; allow only tools they need. Log orchestration overhead and every worker result. It is a different experiment from running one Haiku worker directly. No tool can inspect a screenshot unless image/browser access is actually provided.
 
-`--max-budget-usd` is a print-mode session cap, not an exact invoice or a universal hard cap for other runtimes. Inspect JSON `is_error`, subtype, modelUsage and any permission denials, not only process exit. Attest actual model identity; raw outputs remain private if they contain repository information. Exact applied effort may not be exposed in JSON when an organization clamps it; record that uncertainty.
+`--max-budget-usd` is a print-mode session cap, not an exact invoice or a universal hard cap for other runtimes. Inspect JSON `is_error`, subtype, modelUsage and any permission denials, not only process exit. A quota failure was observed with `subtype:success` and `is_error:true`; `pair.mjs inspect --file report.json` rejects that combination without treating it as a reasoning failure. Attest actual model identity; raw outputs remain private if they contain repository information. Exact applied effort may not be exposed in JSON when an organization clamps it; record that uncertainty.
 
 Authoritative references: [subagents](https://code.claude.com/docs/en/sub-agents), [CLI flags](https://code.claude.com/docs/en/cli-reference), [effort configuration](https://code.claude.com/docs/en/model-config). Subagent per-invocation effort requires v2.1.292+, and file-based `--agents` in print mode requires v2.1.281+.
 

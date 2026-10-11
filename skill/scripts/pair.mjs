@@ -35,6 +35,16 @@ export function validateRow(r, strict = false) {
   }
   return r;
 }
+export function inspectReport(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) throw new Error('report must be an object');
+  const failed = r.is_error !== false || r.subtype !== 'success';
+  const message = [r.result, ...(Array.isArray(r.errors) ? r.errors : [])].filter(v => typeof v === 'string').join('\n');
+  const errorKind = !failed ? null : /weekly limit|quota|rate.limit|usage limit/i.test(message) ? 'quota' : /budget/i.test(message) ? 'budget' : 'runtime';
+  const models = Object.entries(r.modelUsage ?? {}).map(([id, usage]) => ({model: usage.canonicalModel ?? id, costBasis: usage.costBasis ?? 'unknown'}));
+  return {usable: !failed, errorKind, subtype: r.subtype ?? 'unknown', models,
+    cost: {basis: models.length && models.every(m => m.costBasis === 'list') && Number.isFinite(r.total_cost_usd) ? 'api-equivalent' : 'unknown', usd: Number.isFinite(r.total_cost_usd) ? r.total_cost_usd : null},
+    next: failed ? 'preserve partial artifacts, report the failure, continue independent work; do not score this as a model reasoning failure' : 'verify candidate, model, tools and every claim before acceptance'};
+}
 export function estimateCost(model, request, now = new Date()) {
   const p = model.pricing;
   if (!p) return {usd: null, basis: 'unknown', reason: 'no sourced price configuration'};
@@ -117,7 +127,12 @@ export function cli(argv = process.argv.slice(2)) {
   const rows = fs.existsSync(read) ? fs.readFileSync(read, 'utf8').split(/\r?\n/).filter(l => l.trim()).map((l, i) => {
     try { return validateRow(JSON.parse(l)); } catch (e) { throw new Error(`${read}:${i + 1}: ${e.message}`); }
   }) : [];
-  if (command === 'log') {
+  if (command === 'inspect') {
+    if (!options.file) throw new Error('inspect --file report.json');
+    const result = inspectReport(JSON.parse(fs.readFileSync(options.file, 'utf8').replace(/^\uFEFF/, '')));
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.usable) process.exitCode = 1;
+  } else if (command === 'log') {
     const r = validateRow(JSON.parse(options.file ? fs.readFileSync(options.file, 'utf8').replace(/^\uFEFF/, '') : args.join(' ')), true);
     r.date ??= new Date().toISOString().slice(0, 10);
     fs.mkdirSync(path.dirname(ledger), {recursive: true});
@@ -136,7 +151,7 @@ export function cli(argv = process.argv.slice(2)) {
     const out = {ledger: read, exampleOnly: !exists, rows: pairs.map(k => tally(rows, ...k.split('\t'), true))};
     if (options.json) console.log(JSON.stringify(out, null, 2));
     else { console.log(`ledger: ${read}${exists ? '' : ' (historical example; not used to route)'}`); console.table(out.rows); }
-  } else throw new Error('usage: pair.mjs pick <role> [models...] [--config file --effort medium --allow-trial --json] | stats | log --file outcome.json');
+  } else throw new Error('usage: pair.mjs pick <role> [models...] [--config file --effort medium --allow-trial --json] | stats | log --file outcome.json | inspect --file report.json');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { cli(); } catch (e) { console.error(e.message); process.exitCode = 1; }

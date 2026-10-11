@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {plan, estimateCost, validateRow, tally} from '../skill/scripts/pair.mjs';
+import {plan, estimateCost, validateRow, tally, inspectReport} from '../skill/scripts/pair.mjs';
 
 const now = new Date('2026-10-11T12:00:00Z');
 const prices = (input, output) => ({source: 'https://example.test/provider-price', checkedAt: '2026-10-11', input, output});
@@ -77,6 +77,15 @@ test('invalid outcomes and malformed costs fail before logging', () => {
   assert.throws(() => validateRow(row('cheap', {cost: {basis: 'actual', workerUsd: 1}}), true), /source/);
   assert.throws(() => run({effort: 'unsupported'}), /effort/);
   assert.throws(() => run({maxTaskUsd: NaN}), /maxTaskUsd/);
+});
+test('quota error remains failure even when CLI subtype says success', () => {
+  const result = inspectReport({is_error: true, subtype: 'success', result: 'You’ve hit your weekly limit · resets Oct 15'});
+  assert.equal(result.usable, false);
+  assert.equal(result.errorKind, 'quota');
+  assert.equal(result.cost.basis, 'unknown');
+  assert.equal(result.cost.usd, null);
+  assert.equal(inspectReport({is_error: false, subtype: 'error_max_budget_usd'}).usable, false);
+  assert.equal(inspectReport({is_error: false, subtype: 'success', modelUsage: {'claude-haiku-5-5': {costBasis: 'list'}}, total_cost_usd: 0.02}).cost.basis, 'api-equivalent');
 });
 test('CLI file logging, personal stats and no-seed routing work on paths with spaces', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orchestra cli '));

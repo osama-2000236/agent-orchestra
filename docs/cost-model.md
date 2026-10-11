@@ -8,4 +8,6 @@ The example configuration cites first-party Claude pricing checked on 11 October
 
 `stats` identifies the historical example separately. Unversioned rows with no recorded effort are not used to select a versioned model. `log --file <outcome.json>` requires lead verification, evidence, candidate and effort; it writes your ignored local ledger. It does not automatically edit the skill.
 
+`inspect --file <CLI-report.json>` checks `is_error` independently of subtype and emits an offline attestation/accounting summary. A weekly-limit response that says `subtype:success` is still unusable. Unknown cost stays unknown and quota/runtime failure is not logged as a model reasoning defect. Inspect partial files and denied tools before any acceptance decision.
+
 Behavioral tests cover exact model/effort separation, trial policy, risk responsibility, unavailable models, sourced/unknown/stale prices, long-context pricing, budget refusal and order-independent quality-band ranking. These establish the planner's behavior, not the reasoning quality of a live model.

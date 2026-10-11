@@ -1,0 +1,23 @@
+{
+  "policy": {"qualityFloor": 0.6, "nearTie": 0.08, "minTasks": 3, "minClaims": 10},
+  "models": {
+    "claude-haiku-5-5": {
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "pricing": {
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "checkedAt": "2026-10-11", "maxAgeDays": 30,
+        "input": 0.1, "output": 0.5, "cacheRead": 0.01, "cacheWrite": 0.125,
+        "overPromptTokens": {"threshold": 100000, "input": 0.5, "output": 2.5, "cacheRead": 0.05, "cacheWrite": 0.625}
+      }
+    },
+    "claude-sonnet-5-5": {
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "pricing": {"source": "https://platform.claude.com/docs/en/about-claude/pricing", "checkedAt": "2026-10-11", "maxAgeDays": 30, "input": 2, "output": 10, "cacheRead": 0.1, "cacheWrite": 2.5}
+    },
+    "claude-opus-5-5": {
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "pricing": {"source": "https://platform.claude.com/docs/en/about-claude/pricing", "checkedAt": "2026-10-11", "maxAgeDays": 30, "input": 4, "output": 20, "cacheRead": 0.2, "cacheWrite": 5}
+    },
+    "gpt-6.1-sol": {"efforts": ["low", "medium", "high", "xhigh", "max", "ultra"]}
+  }
+}

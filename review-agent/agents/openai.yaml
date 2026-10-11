@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Agent"
+  short_description: "Review code or apps with checked, actionable evidence"
+  default_prompt: "Use $review-agent to review the requested code changes or application and return actionable findings with evidence."
+policy:
+  allow_implicit_invocation: false
