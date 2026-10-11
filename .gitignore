@@ -1,5 +1,6 @@
 node_modules/
 # Your own evidence ledger. It holds task notes from your project, so it stays local unless you choose to share it.
 skill/data/ledger.jsonl
+review-agent/data/ledger.jsonl
 .DS_Store
 Thumbs.db

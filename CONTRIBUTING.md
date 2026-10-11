@@ -16,20 +16,21 @@ accurate are welcome. Changes that add machinery are less likely to be accepted.
 Run these from the repository root before you open the pull request:
 
 ```bash
-node skill/scripts/pair.mjs stats        # must print the example table without errors
+node --test tests/*.test.mjs             # behavioral routing and failure cases
+node scripts/sync-review-agent.mjs       # after editing shared skill resources
+node skill/scripts/pair.mjs stats        # must identify historical/example evidence honestly
 node --check skill/scripts/pair.mjs      # syntax check
 ```
 
-The files in `examples/` are workflow bodies. They use top-level `return` and `await`, and a workflow runner supplies
-their globals (`agent`, `pipeline`, `parallel`, `phase`, `log`, `args`). Plain `node --check` rejects them. To check
-their syntax, wrap each body in an async function in a temporary `.mjs` copy and run `node --check` on the copy. Then
-run them in your workflow runner.
+The files in `examples/` are workflow sketches. Their top-level `return`/`await` and exported metadata require a runner. The distribution test converts only the metadata export and compiles each async body without executing it. No native-agent or live runner compatibility is implied; run an adapted sketch in your actual runner before relying on it.
 
 Also check by hand:
 
 - every relative link in the Markdown files resolves;
 - every `mermaid` block renders on GitHub;
 - the SVG files still open in a browser.
+
+New routing defaults need versioned model/effort evidence, cost basis, full verification/rework cost and a representative evaluation. Do not label three claims proof or transfer an old alias's quality to a new model. Runtime failures and absent visual/hardware evidence must stay visible. Keep ledgers private; publish only deliberately anonymized summaries.
 
 ## Pull request
 
