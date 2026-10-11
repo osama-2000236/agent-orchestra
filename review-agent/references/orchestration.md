@@ -81,7 +81,7 @@ not attestation: GPT-6.1 Sol signed its reports "GPT-6"; take the model from the
 - Wrong or empty answer: same model one effort up, once, with a sharper packet. Then the next tier. Then you.
 - Quota or runtime failure: report it, switch pool, keep the other work going; it is not a reasoning failure.
 - Never resend an identical packet. At most two review rounds; the second checks only the fix commit, and never skip it:
-  on 2026-10-12 a fix that passed the full gate (737 unit, 428 end-to-end) broke a sibling path; Haiku high found it
+  on 2026-10-12 SmartStore fix f38e6cf passed the full gate (737 unit, 428 end-to-end) yet broke a sibling path; Haiku high found it
   on the one-commit diff in 2 minutes.
 
 ## 6. Learn (before you report)
