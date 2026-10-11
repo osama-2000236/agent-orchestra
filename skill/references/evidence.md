@@ -12,6 +12,8 @@ Subscriptions are different from API billing: Claude Code's dollar figure may be
 
 Default `complete-task` ranks mean recorded worker-plus-verification/rework cost within the acceptable quality band, only when all matching tasks have complete accounting and candidates share the same cost basis. Missing verification or rework amounts, mixed actual/list accounting, or absent data disable that comparison. `worker-request` deliberately compares one hypothetical request and labels lead verification/rework excluded; this is the example config's pilot setting, not a complete-task saving. `quality` ignores cost ranking. For a real Pareto comparison, measure representative complete tasks for each model/effort, including retries, missed defects and acceptance checks. Do not claim universal highest quality and lowest price.
 
+`--max-task-usd` follows the selected accounting scope: complete-task mean for `complete-task` and `quality`, hypothetical request for `worker-request`. JSON names that budget basis. Unknown costs refuse a budgeted route; a mean from past tasks is not a guarantee of the next task's spend. Pair this filter with the runtime cap and a handoff when the real budget is exhausted.
+
 ## Local outcome file
 
 ```json

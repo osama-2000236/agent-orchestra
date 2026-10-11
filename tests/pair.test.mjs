@@ -92,11 +92,23 @@ test('complete-task routing includes verification and refuses mixed accounting b
   assert.equal(run({rows, costMode: 'worker-request'}).pick, 'cheap');
   assert.match(run({rows, costMode: 'worker-request'}).decision, /verification and rework excluded/);
 });
+test('task budget uses the selected complete-task costs instead of a cheap worker request', () => {
+  const rows = Array.from({length: 3}, () => row('cheap', {cost: {basis: 'actual', workerUsd: 0.01, verificationUsd: 10, source: 'invoice fixture'}}));
+  const input = {rows, models: ['cheap'], maxTaskUsd: 1};
+  const complete = run({...input, costMode: 'complete-task'});
+  assert.equal(complete.pick, null);
+  assert.equal(complete.candidates[0].budgetCost.usd, 10.01);
+  assert.equal(run({...input, costMode: 'quality'}).pick, null);
+  const worker = run({...input, costMode: 'worker-request'});
+  assert.equal(worker.pick, 'cheap');
+  assert.match(worker.budgetBasis, /verification\/rework excluded/);
+});
 test('configured custom runtime effort is accepted without a global-model assumption', () => {
   const custom = {models: {cheap: {efforts: ['minimal']}}};
   assert.equal(run({models: ['cheap'], config: custom, effort: 'minimal', allowTrial: true}).pick, 'cheap');
   validateRow(row('cheap', {effort: 'minimal'}), true);
   assert.equal(run({models: ['cheap'], effort: 'minimal', allowTrial: true}).pick, null);
+  assert.throws(() => run({config: {models: {cheap: {efforts: 'medium'}}}, allowTrial: true}), /must be a list/);
 });
 test('hypothetical prices stay estimates rather than reported usage', () => {
   assert.equal(estimateCost({pricing: prices(1, 5)}, {}, now).basis, 'estimate');

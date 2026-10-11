@@ -98,8 +98,13 @@ export function plan({rows = [], models = [], role, effort = 'medium', config = 
   if (policy.qualityFloor > 1 || policy.nearTie > 1) throw new Error('quality thresholds must be <= 1');
   for (const k of ['minTasks', 'minClaims']) if (!Number.isInteger(policy[k]) || policy[k] < 1) throw new Error(`${k} must be a positive integer`);
   if (!models.length) models = Object.keys(config.models ?? {});
+  const budgetKey = costMode === 'worker-request' ? 'cost' : 'completeCost';
   const candidates = [...new Set(models)].map(model => {
     const m = config.models?.[model] ?? {};
+    if (m.efforts !== undefined) {
+      if (!Array.isArray(m.efforts)) throw new Error('configured efforts must be a list');
+      for (const label of m.efforts) effortLabel(label);
+    }
     const t = tally(rows, model, role, effort);
     const evidence = t.tasks >= policy.minTasks && t.checked >= policy.minClaims ? 'observed' : 'trial';
     const cost = estimateCost(m, request, now);
@@ -108,8 +113,9 @@ export function plan({rows = [], models = [], role, effort = 'medium', config = 
     if (!(m.efforts ?? EFFORTS).includes(effort)) reasons.push('effort not supported by configured runtime');
     if (evidence === 'trial' && !allowTrial) reasons.push('trial needs explicit full-verification permission');
     if ((t.checked || t.missed) && t.score < policy.qualityFloor) reasons.push('below quality floor');
-    if (maxTaskUsd !== undefined && (cost.usd === null || cost.usd > maxTaskUsd)) reasons.push('estimate unknown or exceeds task budget');
-    return {...t, evidence, cost, eligible: !reasons.length, reasons};
+    const budgetCost = budgetKey === 'cost' ? cost : t.completeCost;
+    if (maxTaskUsd !== undefined && (budgetCost.usd === null || budgetCost.usd > maxTaskUsd)) reasons.push('selected cost basis unknown or exceeds task budget');
+    return {...t, evidence, cost, budgetCost, eligible: !reasons.length, reasons};
   });
   const eligible = candidates.filter(c => c.eligible);
   const best = Math.max(...eligible.map(c => c.score));
@@ -119,7 +125,7 @@ export function plan({rows = [], models = [], role, effort = 'medium', config = 
   const costComparable = costMode !== 'quality' && band.length > 0 && band.every(c => c[costKey].usd !== null && c[costKey].basis === band[0][costKey].basis);
   band.sort((a, b) => costComparable ? a[costKey].usd - b[costKey].usd || b.score - a.score || a.model.localeCompare(b.model) : b.score - a.score || a.model.localeCompare(b.model));
   return {
-    role, effort, risk, costMode, pick: risk === 'high' ? null : band[0]?.model ?? null,
+    role, effort, risk, costMode, budgetBasis: budgetKey === 'cost' ? 'worker-request estimate; verification/rework excluded' : 'recorded complete-task mean', pick: risk === 'high' ? null : band[0]?.model ?? null,
     decision: risk === 'high' ? 'lead retains responsibility; use independent reviewers as evidence' : !band.length ? 'no eligible worker; keep work with lead or repair configuration' : costComparable ? costMode === 'worker-request' ? 'lowest worker-request estimate inside quality band; verification and rework excluded' : 'lowest recorded mean complete-task cost inside quality band' : 'best quality proxy; comparable cost unavailable or cost ranking disabled',
     candidates, policy, limitation: 'Planning heuristic, not a capability guarantee or measured Pareto optimum. Checked claims and known misses do not establish exhaustive recall. Runtime attestation and project gates remain required.'
   };
