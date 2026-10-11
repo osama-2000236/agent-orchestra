@@ -74,6 +74,9 @@ test('benchmark checks accept only the right answers', () => {
   // Review of PR #4: a CLEAN that names the field, generic words without the mechanism, and right answers in other words.
   assert.ok(!trace.check('CLEAN, nothing blocking; earnedBack is handled') && !trace.check('BLOCKING: points already negative on NaN') && !trace.check('BLOCKING: returned value of returnPart unchecked'));
   assert.ok(trace.check('BLOCKING: deleteSale ignores the prior partial return') && trace.check('BLOCKING: deletes full earned despite earlier return') && trace.check('BLOCKING:Deleting partially returned sales deducts already reversed points.'));
+  // Round two: phrases, not loose words in any order.
+  assert.ok(!trace.check('BLOCKING: prior returned value unchecked') && !trace.check('BLOCKING: earlier function returned undefined'));
+  assert.ok(trace.check('BLOCKING: deleteSale ignores earlier returns') && trace.check('BLOCKING: ignores the points returned earlier') && trace.check('BLOCKING: double-counts points already taken back') && trace.check('BLOCKING: Deleting a sale ignores points already returned.'));
 });
 
 test('a failed benchmark rules a model out of the role; a pass keeps it a trial', () => {
