@@ -1,108 +1,106 @@
 ---
-name: subagent-orchestra
-description: Fire subagents on the cheapest model that is proven for each job, verify everything they claim, and get sharper every run from a local evidence ledger. Use for whole-app or section-by-section reviews, multi-agent or parallel work, "use Haiku/Sonnet subagents", cost-aware delegation (model, effort, budget), second-vendor review (Codex, GPT), or when the user names subagent-orchestra or model-orchestra. Not for single-step edits.
+name: agent-orchestra
+description: Lead-and-workers orchestration that keeps the user's chosen model as the leader and sends reading, searching, drafting and first-pass review to the cheapest model that passes for each job (Claude Haiku/Sonnet, Codex/GPT, local models), across separate quota pools, with measured usage, model discovery (`models update`), small benchmarks and a self-improving evidence ledger. Use for multi-step or multi-file work, whole-app reviews, parallel subagents, "use Haiku/cheap agents", running out of usage limits, cost/effort/model choice, second-vendor review, or when the user names agent-orchestra, subagent-orchestra or model-orchestra. Not for one-line edits.
 ---
 
-# Subagent Orchestra
+# Agent Orchestra
 
-You are the **lead**. You own the plan, every irreversible step and the final verdict. Subagents are cheap
-eyes and hands: they find, draft and check; you verify. Repo rules (`AGENTS.md`, `CLAUDE.md`) and the
-user's explicit choices (a named model, "no subagents") beat everything here.
+You are the **leader**: the model the user chose for this session. Never switch yourself to another model
+to save money; delegate instead. You own the plan, every irreversible step and the final verdict. Workers
+find, draft and check; you verify. Repo rules (`AGENTS.md`, `CLAUDE.md`) and the user's explicit choices
+(a named model, "no subagents") beat everything here.
 
-`PAIR` means `node "<this skill's folder>/scripts/pair.mjs"`. It is offline: it never calls a model.
+`ORC` means `node "<this skill's folder>/scripts/orchestra.mjs"`. Only `bench` spends model calls.
 
-## 1. Brief (10 seconds)
+## 1. Start (one call)
 
-Run `PAIR brief`. It prints the best verified route per role from your ledger and the active lessons from
-earlier jobs. Apply the active lessons; treat trial ones as hints. No ledger yet: use the starting routes (section 3).
+`ORC brief` prints the verified route per role from your ledger, active lessons, and your model registry.
+No registry, or older than 30 days: `ORC models update` (free: local runtimes, Codex's model list, a public
+price catalogue). After it reports a new model: `ORC bench --new` (three tiny checked tasks per model, a few
+cents). Once per machine: `ORC tune` shows two Claude Code settings; `ORC tune --apply` sets them, with a backup.
 
-## 2. Scope before you fire
+## 2. Where usage really goes (measured, so act on it)
 
-- Freeze **Goal** and **Acceptance** (each check names the command that proves it) in a resumable handoff
-  file the next agent can finish from. Commit red tests and partial work as you go: a usage limit can stop any
-  worker, or you, mid-step.
-- Whole-app review: build the section x dimension matrix first ([app-review.md](references/app-review.md)).
-  "All" means correctness, security, compatibility, reliability, performance, design/accessibility/RTL,
-  test quality, maintainability and release/docs, each cell marked inspected, exercised or blocked.
+From 66 sessions on one machine over 14 days (`docs/usage-root-causes.md`): the leader spent **92%** of
+list-price usage, re-reading **375k** context tokens per turn on average; subagents that inherited the leader's
+Opus cost **$135** against **$6** for the same number of Haiku requests. So:
 
-## 3. Route each role
+- **Leader turns are the expensive unit.** Each one re-reads the whole context. Batch independent tool calls in
+  one message, send long output to a file and read ranges, and never re-read what you already have.
+- **Delegate the reading.** Searching, inventories, log triage and first-pass review go to a worker that returns
+  a short answer, not to your context.
+- **Name a model on every spawn.** Without one a subagent may run on the leader's model. `tune` sets
+  `CLAUDE_CODE_SUBAGENT_MODEL=haiku` as the default for spawns that forget.
+- **Keep the context small.** Write the handoff and compact before ~200k tokens (`tune` sets `autoCompactWindow`);
+  a fresh session from a good handoff beats a full one.
+- **Merge tiny tasks.** Each new worker pays a cold cache write (~6-40k tokens); one packet with three questions
+  costs less than three workers.
 
-Starting routes, used until your ledger has verified rows for the role. "Why" is evidence, not reputation;
-see [evidence.md](references/evidence.md) and the repository's dated evidence notes.
+`ORC usage` measures the current session the same way (by agent and model, cache reads per leader turn, heavy tool
+results, inherited-model spawns) and prints what to change. Run it at the end of every job.
 
-| Role | Model | Effort | Why |
+## 3. Route: cheapest tier that passes, then escalate
+
+Starting routes until your ledger has verified rows. Bench results are from 2026-10-11 (`docs/benchmarks.md`).
+
+| Role | First try | Escalate to | Evidence |
 | --- | --- | --- | --- |
-| scout, inventory, log triage | haiku | low | cheap and wide; every claim is checked anyway |
-| design / UI / wording review (source) | haiku | medium | real UI defects found at a few cents each; one claim in four needed the lead to correct it |
-| small UI fix from an exact spec | haiku | medium | cheap; the lead reads the diff and runs the screen test |
-| correctness review of a money, stock or permission diff | sonnet | high | narrower and more careful than haiku on callers; still verified |
-| pull-request second opinion | another vendor (Codex review, GPT) | default | caught real money bugs that two same-family reviews passed |
-| core implementation, root-cause diagnosis, verdicts | lead | high | a wrong answer costs the most |
+| scout, search, inventory, extraction | haiku, low | haiku medium | passes extraction and bug-location tasks at low |
+| design / UI / wording review (source) | haiku, medium | sonnet | 9 of 9 checked findings real in one release review |
+| correctness, permission or money review | haiku, **high** | sonnet high, then a second vendor | Haiku **low** called a removed permission check "CLEAN"; Haiku high and Sonnet low caught it |
+| small fix from an exact spec | haiku, medium | sonnet | 7 UI fixes, 726/726 tests, no rework |
+| second opinion on a risky diff | another vendor (Codex `gpt-6.1-sol`) | - | found money bugs two same-family reviews passed |
+| core implementation, diagnosis, verdicts | leader | - | a wrong answer costs the most |
 
-Customize with `PAIR pick <role> <models...> --config <your config.json>` plus:
-
-- `--preset frugal|balanced|thorough`: frugal = low effort, per-request price, trials allowed (only for
-  cheaply checked work); balanced = medium effort, complete-task cost (worker + verification + rework);
-  thorough = high effort, quality ranking only.
-- `--effort low..max`, `--cost-mode complete-task|worker-request|quality`, `--max-task-usd <n>`, `--risk high`
-  (keeps the decision with the lead) and token-shape flags. Explicit `--effort` and `--cost-mode` beat the preset;
-  `--allow-trial` can only add trial permission, so use `balanced` or `thorough` when trials must stay off.
-- Prices live in `data/config.example.json` with their source and date; a snapshot older than 30 days makes
-  cost "unknown", never "cheap". Copy it, refresh it from the cited page, then point `--config` at the copy.
-
-Before building a cascade of models, try the cheap baseline: your strongest model at **low** effort often
-beats a weaker model at high effort, and judge cost per finished task, not per request.
-
-Hard rules, whatever the score: money, stock, permissions, security, old-data migration and release verdicts
-stay with the lead. One writer per file at a time. Workers never commit, push, merge, publish or touch secrets.
+- **Effort before tier.** Raise effort on the same cheap model once before moving up a tier; low effort is for
+  tasks whose answer you can check in seconds.
+- **Quota pools are separate.** Claude subscription, ChatGPT/Codex login, and local models each have their own
+  limit. When one is exhausted (a 429 or "usage limit"), move the role to an equivalent tier in another pool
+  (`ORC models list` shows pools and tiers); do not wait and do not climb tiers.
+- **Strongest at low effort is a baseline.** Before building a cascade, compare it; judge cost per finished task.
+- `ORC pick <role> [models...] --preset frugal|balanced|thorough` ranks candidates from your ledger and bench rows
+  (a failed bench rules a model out). Explicit `--effort`, `--cost-mode`, `--max-task-usd` override the preset.
+- Hard rules: money, stock, permissions, security, old-data migration and release verdicts stay with the leader.
+  One writer per file. Workers never commit, push, merge, publish or touch secrets.
 
 ## 4. Fire
 
-- **One message, many agents**: independent workers go out together, in the background, so you keep working.
-- **Packet** for each worker: goal; exact files and line ranges (or the search patterns to start from) for a
-  large minified file; the rules file and the rule sections that apply; read-only or the paths it may write;
-  its tools; what is out of bounds; the output shape
-  `severity (BLOCKING|BACKLOG), file:line, quoted code, defect, concrete scenario, fix, reproduced?` capped
-  at about 8 findings; and "end with the model you are and what you actually read".
-- Reviewers read a **pinned commit** (`git worktree add --detach <dir> <sha>`), never a moving tree.
-- Parallel writers get disjoint files or their own worktrees, and pre-assigned test ids.
-- A required secret: say "it is present; do not open it". Never copy it into the packet.
-- Second vendor: its read-only sandbox, on the pinned commit. On Windows, if a Codex CLI sandbox fails to start
-  (`helper_unknown_error`), `-c windows.sandbox="unelevated"` worked before you give the role to someone else.
+- **One message, many agents**, in the background, each with `model` and `effort` set.
+- **Packet**: goal; exact files and line ranges or search patterns; the rule sections that apply; read-only or the
+  paths it may write; tools; out of bounds; output shape
+  `severity (BLOCKING|BACKLOG), file:line, defect, scenario, reproduced?`, about 8 findings max, under 400 words;
+  and "end with your model name and what you actually read".
+- Reviewers read a **pinned commit** (`git worktree add --detach <dir> <sha>`). Parallel writers get disjoint files.
+- A required secret: say "it is present; do not open it".
+- External workers (`claude -p`, `codex exec`): full model ids (CLI aliases differ by version: an older CLI sent
+  `haiku` to a previous generation), `--setting-sources local` so your own hooks stay out of the worker's prompt,
+  and the commands in [dispatch.md](references/dispatch.md).
 
-## 5. Verify
+## 5. Verify, escalate, retry
 
-A claim is a lead fact only after you read the cited line, run the test, or watch it fail. Classify every claim:
-**confirmed**, **refuted** (wrong, or by design) or **rework** (right idea, you had to fix it). Money, stock and
-permission fixes are defect-first: a test that fails for the real defect, then green, then neighbours and old
-data. Fix a round's blockers together; at most two review rounds, the second on the fix commit only. Anything
-non-blocking goes to a backlog line with its evidence.
+A claim is a leader fact only after you read the cited line, run the test, or watch it fail. Classify each as
+**confirmed**, **refuted** or **rework**, and re-grade every BLOCKING label against the repo's own rule.
+
+- Wrong or empty answer: same model one effort up, once, with a sharper packet. Then the next tier. Then you.
+- Quota or runtime failure: report it, switch pool, keep the other work going; it is not a reasoning failure.
+- Never resend an identical packet. At most two review rounds; the second checks only the fix commit.
 
 ## 6. Learn (before you report)
 
-1. One ledger row per worker task, lead-verified:
-   `PAIR log --file outcome.json` (fields in [evidence.md](references/evidence.md): model, effort, role, candidate,
-   confirmed, refuted, rework, missed, minutes, cost with its basis). A tool or quota failure is a note, not a
-   refuted claim.
-2. One lesson, the single thing that most changed total work this time:
-   `PAIR lesson --file lesson.json` with `{"id":"kebab-id","rule":"...","scope":"...","evidence":"...","outcome":"support"}`.
-   Reuse an existing id to support it again, or `"outcome":"contradict"` when it failed.
-   Two supports make it **active** (the brief shows it to every later run); contradictions that catch up retire it.
-   "No change justified" is a fine lesson to skip.
+1. `ORC log --file outcome.json`: one row per worker task you verified (model, effort, role, confirmed, refuted,
+   rework, missed, minutes, cost basis). See [evidence.md](references/evidence.md).
+2. `ORC lesson --file lesson.json`: the one rule that most changed total work. Two supports make it active in every
+   later brief; contradictions retire it.
+3. `ORC usage`: compare leader share and context per turn with your last job.
 
-The ledger and lessons stay local and private. Promote an active lesson into this file only by a reviewed pull
-request with its evidence; never rewrite the installed skill automatically.
+Ledger, lessons, bench rows and registry stay local. Promote a lesson into this file only by a reviewed pull request.
 
-## 7. Failures
+## 7. Finish
 
-Report a worker or runtime failure at once and keep the independent work going. Retry once with a corrected
-packet; then hand the role to the next route or keep it, and say which model did it. A CLI report can say
-`subtype: success` with `is_error: true` (a quota stop): `PAIR inspect --file report.json` catches it. A shared
-quota outage says nothing about a model's reasoning. Never report a check that did not run, and never swap a
-model the user asked for without saying so.
+Do what the repo's rules require (merge, push, package, publish, clean up), preserving other sessions' work and
+secrets. Report **verified by the leader** and **reported by workers** separately, every failure, and anything
+waiting on the user.
 
-## 8. Finish
-
-Do what the repo's rules require to finish (merge, push, package, publish, clean up), preserving other sessions'
-work and secrets. Report two lists: **verified by the lead** and **reported by workers**, each with how it was
-checked, and anything waiting on the user. Confidence comes from the checks you name, not from "100%".
+More: [dispatch.md](references/dispatch.md) (runtimes and commands), [evidence.md](references/evidence.md) (ledger,
+cost basis), [managed-agents.md](references/managed-agents.md) (what was adapted from Claude Managed Agents),
+[app-review.md](references/app-review.md) (section-by-section reviews).
