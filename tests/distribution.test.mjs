@@ -5,7 +5,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 test('review-agent distribution has current shared resources without private ledger', () => {
-  for (const name of ['scripts/pair.mjs', 'data/config.example.json', 'data/ledger.example.jsonl', 'references/app-review.md', 'references/dispatch.md', 'references/evidence.md']) {
+  for (const name of ['scripts/pair.mjs', 'scripts/orchestra.mjs', 'scripts/usage.mjs', 'scripts/models.mjs', 'references/managed-agents.md', 'data/config.example.json', 'data/ledger.example.jsonl', 'references/app-review.md', 'references/dispatch.md', 'references/evidence.md']) {
     assert.equal(fs.readFileSync(path.join('review-agent', name), 'utf8'), fs.readFileSync(path.join('skill', name), 'utf8'), name);
   }
   const body = fs.readFileSync('skill/SKILL.md', 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').replaceAll('(references/', '(');

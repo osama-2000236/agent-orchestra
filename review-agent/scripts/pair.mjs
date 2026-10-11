@@ -129,7 +129,7 @@ export function tally(rows, model, role, effort, includeHistorical = false) {
   t.completeCost = {usd: comparable ? completeCosts.reduce((sum, c) => sum + c.usd, 0) / t.tasks : null, basis: comparable ? completeCosts[0].basis : 'unknown', tasks: completeCosts.length};
   return t;
 }
-export function plan({rows = [], models = [], role, effort = 'medium', config = {}, request = {}, allowTrial = false, risk = 'ordinary', maxTaskUsd, costMode = config.costMode ?? 'complete-task', now}) {
+export function plan({rows = [], bench = [], models = [], role, effort = 'medium', config = {}, request = {}, allowTrial = false, risk = 'ordinary', maxTaskUsd, costMode = config.costMode ?? 'complete-task', now}) {
   text(role, 'role');
   effortLabel(effort);
   if (!['complete-task', 'worker-request', 'quality'].includes(costMode)) throw new Error('invalid costMode');
@@ -155,6 +155,9 @@ export function plan({rows = [], models = [], role, effort = 'medium', config = 
     if (!(m.efforts ?? EFFORTS).includes(effort)) reasons.push('effort not supported by configured runtime');
     if (evidence === 'trial' && !allowTrial) reasons.push('trial needs explicit full-verification permission');
     if ((t.checked || t.missed) && t.score < policy.qualityFloor) reasons.push('below quality floor');
+    // A failed smoke benchmark for this role and effort rules a model out; passing one only keeps it a trial.
+    const runs = bench.filter(b => b.ok && (b.resolved === model || b.model === model) && b.role === role && b.effort === effort);
+    if (runs.length && runs.filter(b => b.pass).length * 3 < runs.length * 2) reasons.push(`failed benchmark (${runs.filter(b => b.pass).length}/${runs.length})`);
     const budgetCost = budgetKey === 'cost' ? cost : t.completeCost;
     if (maxTaskUsd !== undefined && (budgetCost.usd === null || budgetCost.usd > maxTaskUsd)) reasons.push('selected cost basis unknown or exceeds task budget');
     return {...t, evidence, cost, budgetCost, eligible: !reasons.length, reasons};
@@ -171,6 +174,13 @@ export function plan({rows = [], models = [], role, effort = 'medium', config = 
     decision: risk === 'high' ? 'lead retains responsibility; use independent reviewers as evidence' : !band.length ? 'no eligible worker; keep work with lead or repair configuration' : costComparable ? costMode === 'worker-request' ? 'lowest worker-request estimate inside quality band; verification and rework excluded' : 'lowest recorded mean complete-task cost inside quality band' : 'best quality proxy; comparable cost unavailable or cost ranking disabled',
     candidates, policy, limitation: 'Planning heuristic, not a capability guarantee or measured Pareto optimum. Checked claims and known misses do not establish exhaustive recall. Runtime attestation and project gates remain required.'
   };
+}
+// The registry written by `orchestra.mjs models update` is the default config: discovered models, efforts and prices.
+function registryConfig() {
+  const file = path.join(DATA, 'models.json');
+  if (!fs.existsSync(file)) return {};
+  const reg = JSON.parse(fs.readFileSync(file, 'utf8'));
+  return {models: Object.fromEntries(Object.values(reg.models).map(m => [m.id, {efforts: m.efforts, pricing: m.pricing?.checkedAt ? m.pricing : undefined, available: m.available}]))};
 }
 export function cli(argv = process.argv.slice(2)) {
   const [command, ...raw] = argv;
@@ -208,10 +218,10 @@ export function cli(argv = process.argv.slice(2)) {
     fs.appendFileSync(ledger, JSON.stringify(r) + '\n');
     console.log(JSON.stringify({logged: r.model, role: r.role, ledger}));
   } else if (command === 'pick') {
-    const config = options.config ? JSON.parse(fs.readFileSync(options.config, 'utf8').replace(/^\uFEFF/, '')) : {};
+    const config = options.config ? JSON.parse(fs.readFileSync(options.config, 'utf8').replace(/^\uFEFF/, '')) : registryConfig();
     const request = {};
     for (const [flag, field] of [['input-tokens', 'inputTokens'], ['output-tokens', 'outputTokens'], ['cache-read-tokens', 'cacheReadTokens'], ['cache-write-tokens', 'cacheWriteTokens']]) if (options[flag] !== undefined) request[field] = Number(options[flag]);
-    const result = plan({rows: exists ? rows : [], role: args[0], models: args.slice(1), config, effort: options.effort ?? preset.effort, risk: options.risk, costMode: options['cost-mode'] ?? preset.costMode, allowTrial: options['allow-trial'] ?? preset.allowTrial, request, maxTaskUsd: options['max-task-usd'] === undefined ? undefined : Number(options['max-task-usd'])});
+    const result = plan({rows: exists ? rows : [], bench: readJsonl(path.join(DATA, 'bench.jsonl'), b => b), role: args[0], models: args.slice(1), config, effort: options.effort ?? preset.effort, risk: options.risk, costMode: options['cost-mode'] ?? preset.costMode, allowTrial: options['allow-trial'] ?? preset.allowTrial, request, maxTaskUsd: options['max-task-usd'] === undefined ? undefined : Number(options['max-task-usd'])});
     const out = {ledger: exists ? read : null, seedUsedForRouting: false, ...result};
     if (options.json) console.log(JSON.stringify(out, null, 2));
     else { console.table(result.candidates.map(c => ({model: c.model, effort: c.effort, checked: c.checked, tasks: c.tasks, score: +c.score.toFixed(3), evidence: c.evidence, estimatedUsd: c.cost.usd, eligible: c.eligible}))); console.log(`pick: ${result.pick ?? 'lead'}; ${result.decision}`); console.log(result.limitation); }
@@ -223,7 +233,7 @@ export function cli(argv = process.argv.slice(2)) {
     const now = lessonStatus(readJsonl(lessonFile, validateLesson)).find(s => s.id === l.id);
     console.log(JSON.stringify({lesson: l.id, status: now.status, support: now.support, contradict: now.contradict, file: lessonFile}));
   } else if (command === 'brief') {
-    const config = options.config ? JSON.parse(fs.readFileSync(options.config, 'utf8').replace(/^\uFEFF/, '')) : {};
+    const config = options.config ? JSON.parse(fs.readFileSync(options.config, 'utf8').replace(/^\uFEFF/, '')) : registryConfig();
     const out = {ledger: exists ? read : null, lessonFile, ...brief(exists ? rows : [], readJsonl(lessonFile, validateLesson), config)};
     if (options.json) console.log(JSON.stringify(out, null, 2));
     else {
@@ -238,7 +248,7 @@ export function cli(argv = process.argv.slice(2)) {
     const out = {ledger: read, exampleOnly: !exists, rows: pairs.map(k => tally(rows, ...k.split('\t'), true))};
     if (options.json) console.log(JSON.stringify(out, null, 2));
     else { console.log(`ledger: ${read}${exists ? '' : ' (historical example; not used to route)'}`); console.table(out.rows); }
-  } else throw new Error('usage: pair.mjs brief [--json] | pick <role> [models...] [--config file --preset frugal|balanced|thorough --effort medium --cost-mode complete-task|worker-request|quality --max-task-usd n --allow-trial --risk high --json] | log --file outcome.json | lesson --file lesson.json | stats | inspect --file report.json');
+  } else throw new Error('usage: orchestra.mjs usage [--last n] | models discover|update|list|rollback | bench [--targets runtime:model:effort,...] | tune [--apply] | brief [--json] | pick <role> [models...] [--config file --preset frugal|balanced|thorough --effort medium --cost-mode complete-task|worker-request|quality --max-task-usd n --allow-trial --risk high --json] | log --file outcome.json | lesson --file lesson.json | stats | inspect --file report.json');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { cli(); } catch (e) { console.error(e.message); process.exitCode = 1; }
