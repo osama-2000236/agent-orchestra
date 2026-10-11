@@ -1,4 +1,5 @@
 {
+  "costMode": "worker-request",
   "policy": {"qualityFloor": 0.6, "nearTie": 0.08, "minTasks": 3, "minClaims": 10},
   "models": {
     "claude-haiku-5-5": {

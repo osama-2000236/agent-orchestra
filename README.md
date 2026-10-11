@@ -53,6 +53,8 @@ The example is an ordinary UI trial whose suggestions the lead can check cheaply
 - The claimed-precision score cannot measure bugs a reviewer missed. Risk-heavy routing needs representative evaluation and lead checks.
 - Quality-band and sample-size settings are explicit heuristics. Adjust them from measured complete-task results, including lead verification and rework.
 
+The example config selects `worker-request` estimates and labels verification/rework excluded. The planner's default `complete-task` mode compares recorded total-task means only when accounting is complete and uses the same basis; otherwise it falls back to quality evidence. Use `--cost-mode quality` to avoid price ranking altogether.
+
 See [cost and evidence controls](docs/cost-model.md), [runtime dispatch](skill/references/dispatch.md), [review coverage](skill/references/app-review.md) and [bounded playbooks](docs/playbooks.md).
 
 ## Learn without accumulating rules

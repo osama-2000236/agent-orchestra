@@ -9,7 +9,7 @@ import {plan, estimateCost, validateRow, tally, inspectReport} from '../skill/sc
 const now = new Date('2026-10-11T12:00:00Z');
 const prices = (input, output) => ({source: 'https://example.test/provider-price', checkedAt: '2026-10-11', input, output});
 const row = (model, values = {}) => ({task: 'one bounded review', role: 'review-ui', model, effort: 'medium', verified: true, candidate: 'abc123', evidence: 'lead reproduction', confirmed: 4, refuted: 0, rework: 0, ...values});
-const config = {models: {cheap: {pricing: prices(1, 5)}, strong: {pricing: prices(4, 20)}}};
+const config = {costMode: 'worker-request', models: {cheap: {pricing: prices(1, 5)}, strong: {pricing: prices(4, 20)}}};
 const run = values => plan({role: 'review-ui', config, models: ['strong', 'cheap'], now, ...values});
 
 test('no evidence does not silently approve a trial', () => {
@@ -66,7 +66,7 @@ test('Haiku long-context tier counts cache reads and writes in prompt length', (
 });
 test('anchored near-tie quality band is independent of candidate order', () => {
   const rows = [row('a', {confirmed: 20}), row('b', {confirmed: 10}), row('c', {confirmed: 5})];
-  const c = {models: {a: {pricing: prices(5, 25)}, b: {pricing: prices(2, 10)}, c: {pricing: prices(0.1, 0.5)}}};
+  const c = {costMode: 'worker-request', models: {a: {pricing: prices(5, 25)}, b: {pricing: prices(2, 10)}, c: {pricing: prices(0.1, 0.5)}}};
   for (const models of [['a', 'b', 'c'], ['c', 'a', 'b'], ['b', 'c', 'a']]) {
     assert.equal(run({models, rows, config: c, allowTrial: true}).pick, 'b');
   }
@@ -75,8 +75,53 @@ test('invalid outcomes and malformed costs fail before logging', () => {
   assert.throws(() => validateRow(row('cheap', {verified: false}), true), /verified/);
   assert.throws(() => validateRow(row('cheap', {confirmed: -1}), true), /confirmed/);
   assert.throws(() => validateRow(row('cheap', {cost: {basis: 'actual', workerUsd: 1}}), true), /source/);
-  assert.throws(() => run({effort: 'unsupported'}), /effort/);
+  assert.throws(() => run({effort: 'not an effort'}), /effort/);
   assert.throws(() => run({maxTaskUsd: NaN}), /maxTaskUsd/);
+});
+test('verified missed defects lower eligibility instead of only appearing in statistics', () => {
+  const rows = Array.from({length: 3}, () => row('cheap', {confirmed: 4, missed: 100}));
+  assert.equal(run({rows, models: ['cheap']}).pick, null);
+  assert.ok(run({rows, models: ['cheap']}).candidates[0].score < 0.6);
+});
+test('complete-task routing includes verification and refuses mixed accounting bases', () => {
+  const costs = (workerUsd, verificationUsd, basis = 'actual') => ({basis, workerUsd, verificationUsd, source: 'invoice fixture'});
+  const rows = Array.from({length: 3}, () => [row('cheap', {cost: costs(0.01, 10)}), row('strong', {cost: costs(0.1, 0.1)})]).flat();
+  assert.equal(run({rows, costMode: 'complete-task'}).pick, 'strong');
+  const mixed = rows.map(r => r.model === 'strong' ? {...r, cost: {...r.cost, basis: 'api-equivalent'}} : r);
+  assert.match(run({rows: mixed, costMode: 'complete-task'}).decision, /comparable cost unavailable/);
+  assert.equal(run({rows, costMode: 'worker-request'}).pick, 'cheap');
+  assert.match(run({rows, costMode: 'worker-request'}).decision, /verification and rework excluded/);
+});
+test('configured custom runtime effort is accepted without a global-model assumption', () => {
+  const custom = {models: {cheap: {efforts: ['minimal']}}};
+  assert.equal(run({models: ['cheap'], config: custom, effort: 'minimal', allowTrial: true}).pick, 'cheap');
+  validateRow(row('cheap', {effort: 'minimal'}), true);
+  assert.equal(run({models: ['cheap'], effort: 'minimal', allowTrial: true}).pick, null);
+});
+test('hypothetical prices stay estimates rather than reported usage', () => {
+  assert.equal(estimateCost({pricing: prices(1, 5)}, {}, now).basis, 'estimate');
+});
+test('malformed long-context thresholds fail instead of silently using the cheaper tier', () => {
+  assert.throws(() => estimateCost({pricing: {...prices(1, 5), overPromptTokens: {threshold: '100k'}}}, {}, now), /threshold/);
+  assert.throws(() => estimateCost({pricing: {...prices(1, 5), maxAgeDays: '30'}}, {}, now), /maxAgeDays/);
+});
+test('evidence thresholds cannot turn absent checked claims into observed work', () => {
+  assert.throws(() => run({config: {policy: {minTasks: 0}}}), /positive integer/);
+  assert.throws(() => run({config: {policy: {minClaims: 0}}}), /positive integer/);
+});
+test('empty ledger environment uses the private default instead of an empty filename', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orchestra env '));
+  try {
+    const scripts = path.join(dir, 'scripts');
+    fs.mkdirSync(scripts);
+    const script = path.join(scripts, 'pair.mjs');
+    fs.copyFileSync(path.resolve('skill/scripts/pair.mjs'), script);
+    const input = path.join(dir, 'outcome.json');
+    fs.writeFileSync(input, JSON.stringify(row('cheap')));
+    const output = spawnSync(process.execPath, [script, 'log', '--file', input], {encoding: 'utf8', env: {...process.env, MODEL_ORCHESTRA_LEDGER: ''}});
+    assert.equal(output.status, 0, output.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'data', 'ledger.jsonl'), 'utf8')).model, 'cheap');
+  } finally { fs.rmSync(dir, {recursive: true}); }
 });
 test('quota error remains failure even when CLI subtype says success', () => {
   const result = inspectReport({is_error: true, subtype: 'success', result: 'You’ve hit your weekly limit · resets Oct 15'});
