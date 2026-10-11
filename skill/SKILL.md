@@ -47,7 +47,7 @@ Starting routes until your ledger has verified rows. Bench results are from 2026
 | --- | --- | --- | --- |
 | scout, search, inventory, extraction | haiku, low | haiku medium | passes extraction and bug-location tasks at low |
 | design / UI / wording review (source) | haiku, medium | sonnet | 9 of 9 checked findings real in one release review |
-| correctness, permission or money review | haiku, **high** | sonnet high, then a second vendor | Haiku **low** called a removed permission check "CLEAN"; Haiku high and Sonnet low caught it |
+| correctness, permission or money review | haiku, **high** (ChatGPT pool: gpt-6-luna, low) | sonnet high, then a second vendor | Haiku **low** called a removed permission check "CLEAN"; Haiku high, Sonnet low and Luna low caught it |
 | small fix from an exact spec | haiku, medium | sonnet | 7 UI fixes, 726/726 tests, no rework |
 | second opinion on a risky diff | another vendor (Codex `gpt-6.1-sol`) | - | found money bugs two same-family reviews passed |
 | core implementation, diagnosis, verdicts | leader | - | a wrong answer costs the most |

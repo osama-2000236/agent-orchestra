@@ -17,6 +17,14 @@ rows, including each answer and the model that really answered: [benchmarks/2026
 | claude-sonnet-5-5 @ low | 3/3 | 5.7 | 0.0326 |
 | claude-sonnet-5-5 @ medium | 3/3 | 7.6 | 0.0154 |
 | claude-opus-5-5 @ low | 3/3 | 9.3 | 0.0318 |
+| codex gpt-6-luna @ low | 3/3 | 5.0 | ≤0.0063 (est.) |
+| codex gpt-6-luna @ high | 3/3 | 7.1 | ≤0.0064 (est.) |
+| codex gpt-6.1-sol @ low | 3/3 | 6.5 | ≤0.13 (est.) |
+
+Codex rows ran through `codex exec` on a ChatGPT login (codex-cli 0.162.1) after its usage limit reset. Codex does not
+report a price, so the USD column is an upper bound: about 21k input tokens per call (mostly Codex's own instructions)
+priced uncached at the public catalogue rate ($0.10 in / $0.50 out per million for Luna, $2 / $10 for Sol); cached
+input would cut it by roughly ten. On a subscription these calls draw the ChatGPT quota, not Claude's.
 
 What it changed in the skill:
 
@@ -28,8 +36,11 @@ What it changed in the skill:
   That is why merging tiny tasks into one worker is cheaper than many workers.
 
 Failures recorded, not scored: three Opus 5.5 rows failed on an older CLI ("Claude Code 2.1.251 does not support
-this model; version 2.1.280 or newer is required") before the update; the Codex rows could not run because the ChatGPT
-login had hit its usage limit ("try again at 6:28 PM"). A quota or version failure says nothing about a model's answers.
+this model; version 2.1.280 or newer is required") before the update; the first Codex attempt could not run because the
+ChatGPT login had hit its usage limit ("try again at 6:28 PM"); the rows above ran after the reset.
+
+- GPT-6-Luna passed all three at low effort, including the permission check Haiku 5.5 missed at low: in the ChatGPT
+  pool it is the cheap first try for review roles, the counterpart of Haiku at high. A quota or version failure says nothing about a model's answers.
 
 Reproduce:
 
