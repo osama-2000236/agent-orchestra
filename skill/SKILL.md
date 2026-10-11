@@ -49,7 +49,7 @@ Starting routes until your ledger has verified rows. Bench results are from 2026
 | design / UI / wording review (source) | haiku, medium | sonnet | 9 of 9 checked findings real in one release review |
 | correctness, permission or money review | haiku, **high** (ChatGPT pool: gpt-6-luna, low) | sonnet high, then a second vendor | Haiku **low** called a removed permission check "CLEAN"; Haiku high, Sonnet low and Luna low caught it |
 | small fix from an exact spec | haiku, medium | sonnet | 7 UI fixes, 726/726 tests, no rework |
-| second opinion on a risky diff | another vendor (Codex `gpt-6.1-sol`) | - | found money bugs two same-family reviews passed |
+| second opinion on a risky diff | another vendor (Codex `gpt-6.1-sol`) | - | found money bugs two same-family reviews passed; on 2026-10-11 six confirmed payroll, loyalty and FX defects in a released build |
 | core implementation, diagnosis, verdicts | leader | - | a wrong answer costs the most |
 
 - **Effort before tier.** Raise effort on the same cheap model once before moving up a tier; low effort is for
@@ -78,7 +78,8 @@ Starting routes until your ledger has verified rows. Bench results are from 2026
 
 ## 5. Verify, escalate, retry
 
-A claim is a leader fact only after you read the cited line, run the test, or watch it fail. Classify each as
+A claim is a leader fact only after you read the cited line, run the test, or watch it fail. A worker's own words are
+not attestation: GPT-6.1 Sol signed its reports "GPT-6"; take the model from the runtime's events or JSON. Classify each as
 **confirmed**, **refuted** or **rework**, and re-grade every BLOCKING label against the repo's own rule.
 
 - Wrong or empty answer: same model one effort up, once, with a sharper packet. Then the next tier. Then you.

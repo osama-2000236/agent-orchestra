@@ -66,10 +66,11 @@ test('registry update keeps provider prices and overrides, marks vanished models
 });
 
 test('benchmark checks accept only the right answers', () => {
-  const [bug, extract, review] = TASKS;
+  const [bug, extract, review, trace] = TASKS;
   assert.ok(bug.check('4') && !bug.check('2') && !bug.check('14'));
   assert.ok(extract.check('{"total":42,"currency":"ILS"}') && !extract.check('{"total":42.5,"currency":"ILS"}'));
   assert.ok(review.check('BLOCKING: removed the canRefund permission check') && !review.check('CLEAN'));
+  assert.ok(trace.check('BLOCKING: delete subtracts points the return already took') && !trace.check('BLOCKING: points can go negative') && !trace.check('BLOCKING: no guard against negative or NaN points') && !trace.check('CLEAN'));
 });
 
 test('a failed benchmark rules a model out of the role; a pass keeps it a trial', () => {
