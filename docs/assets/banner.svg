@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="banner-title banner-desc">
-  <title id="banner-title">Subagent Orchestra</title>
-  <desc id="banner-desc">Subagent Orchestra: fire subagents on the model that has earned the job. Title with a three-node diagram. A lead model verifies. Cheap workers do most of the work. A second-vendor reviewer checks a pinned commit, and its findings return to the lead.</desc>
+  <title id="banner-title">Agent Orchestra</title>
+  <desc id="banner-desc">Agent Orchestra: your model leads, and cheaper models do the reading. Title with a three-node diagram. A lead model verifies. Cheap workers do most of the work. A second-vendor reviewer checks a pinned commit, and its findings return to the lead.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0F172A"/>
@@ -13,8 +13,8 @@
   <rect width="1280" height="320" fill="url(#bg)"/>
 
   <g font-family="Segoe UI, Inter, Arial, sans-serif">
-    <text x="60" y="130" font-size="60" font-weight="700" fill="#F8FAFC">Subagent Orchestra</text>
-    <text x="60" y="185" font-size="26" fill="#F8FAFC">Fire subagents on the model that has earned the job.</text>
+    <text x="60" y="130" font-size="60" font-weight="700" fill="#F8FAFC">Agent Orchestra</text>
+    <text x="60" y="185" font-size="26" fill="#F8FAFC">Your model leads. Cheaper models do the reading.</text>
     <text x="60" y="224" font-size="20" fill="#94A3B8">Lead verifies · cheap models do the work · gets sharper every run</text>
     <text x="60" y="280" font-size="18" fill="#94A3B8">Evidence ledger  ·  role routing  ·  bounded review</text>
   </g>

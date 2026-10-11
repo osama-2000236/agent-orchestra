@@ -1,103 +1,120 @@
-# Subagent Orchestra
+# Agent Orchestra
 
-[![License: MIT](https://img.shields.io/github/license/osama-2000236/subagent-orchestra)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/osama-2000236/subagent-orchestra?style=social)](https://github.com/osama-2000236/subagent-orchestra/stargazers)
+[![License: MIT](https://img.shields.io/github/license/osama-2000236/agent-orchestra)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/osama-2000236/agent-orchestra?style=social)](https://github.com/osama-2000236/agent-orchestra/stargazers)
 
-![Subagent Orchestra: fire subagents on the model that has earned the job](docs/assets/banner.svg)
+![Agent Orchestra: your model leads, and cheaper models do the reading](docs/assets/banner.svg)
 
-Fire subagents on the cheapest model that is proven for each job. The lead verifies every claim, and the skill gets sharper every run from a local evidence ledger.
+Keep your chosen model as the leader; send the reading, searching and first-pass review to the cheapest model that passes.
 
-## Why
+## The problem, measured
 
-- **Cheaper workers.** Scouting, UI review and small fixes go to cheaper models. At list price, Haiku 5.5 is $0.10 input and $0.50 output per million tokens, against $4 and $20 for Opus 5.5 ([pricing page](https://platform.claude.com/docs/en/about-claude/pricing)).
-- **Checked output.** The lead reads the cited line, runs the test or watches it fail before a worker's claim counts. Money, stock, permission, security and release verdicts stay with the lead, even when a worker reviewed the diff.
-- **Learns from its own runs.** Each job logs verified outcomes to a local ledger. A lesson becomes active after two supporting jobs, and it is retired once contradictions catch up with its support.
-- **Works with Claude Code subagents and a second vendor.** Claude Code subagents do the work. For a pull request, a second vendor (Codex or GPT) gives an independent read-only review of a pinned commit.
+From 66 Claude Code sessions on one machine over the 14 days to 11 October 2026, at list-price equivalents ([details](docs/usage-root-causes.md)):
 
-If this saves you review time or model spend, a star helps other people find it.
+- The leader's own turns were **92%** of the $1,937 total, and each leader turn re-read **375k** cached context tokens on average.
+- Subagents that inherited the leader's Opus model cost **$135** for 2,532 requests. Haiku 5.5 subagents cost **$6** for 2,573 requests.
+- In a checked review, Haiku 5.5 at low effort called a removed permission check "CLEAN". At high effort it caught the problem. Effort matters as much as the model.
+- Claude, ChatGPT/Codex and local models have separate usage limits. One exhausted limit stopped a reviewer, and another stopped the second vendor.
+
+## What it does
+
+- **The leader stays.** Your chosen model plans, makes every irreversible decision and gives the final verdict. Workers find, draft and check. The leader reads the cited line, runs the test or watches it fail before a claim counts.
+- **A routing table.** Scouting, search and extraction start on Haiku at low effort. Design and wording review starts on Haiku at medium. Correctness, permission and money review starts on Haiku at high. Each escalates one step at a time: effort first, then a stronger tier, then a second vendor. Core implementation and verdicts stay with the leader.
+- **Separate quota pools.** Claude subscription, ChatGPT/Codex and local models each have their own limit. When one is exhausted, the role moves to an equivalent tier in another pool instead of waiting.
+- **A ledger that learns.** Each verified job is logged locally. A lesson becomes active after two supporting jobs and is retired when contradictions catch up.
+- **Model registry.** `models update` lists what your runtimes offer and fills in prices from a public catalogue. `models rollback` restores the previous registry.
+- **Measurement.** `usage` reads your Claude Code transcripts. `bench` runs three small checked tasks per model. `tune` sets two Claude Code settings, with a backup.
 
 ## Install
 
 Claude Code, bash:
 
 ```bash
-git clone https://github.com/osama-2000236/subagent-orchestra
-mkdir -p ~/.claude/skills/subagent-orchestra
-cp -r subagent-orchestra/skill/. ~/.claude/skills/subagent-orchestra/
+git clone https://github.com/osama-2000236/agent-orchestra
+mkdir -p ~/.claude/skills/agent-orchestra
+cp -r agent-orchestra/skill/. ~/.claude/skills/agent-orchestra/
 ```
 
 Claude Code, Windows PowerShell:
 
 ```powershell
-git clone https://github.com/osama-2000236/subagent-orchestra
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\subagent-orchestra" | Out-Null
-Copy-Item -Recurse -Force subagent-orchestra\skill\* "$env:USERPROFILE\.claude\skills\subagent-orchestra"
+git clone https://github.com/osama-2000236/agent-orchestra
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\agent-orchestra" | Out-Null
+Copy-Item -Recurse -Force agent-orchestra\skill\* "$env:USERPROFILE\.claude\skills\agent-orchestra"
 ```
 
-For Codex, copy `skill/` contents to `~/.codex/skills/subagent-orchestra/`. The optional `review-agent/` distribution keeps read-only diff review as its default and adds explicit whole-app/coordinating modes. Native tool names and model options differ; the skill discovers the actual runtime. It does not assume every host can launch a Claude subagent.
+Codex: copy the contents of `skill/` to `~/.codex/skills/agent-orchestra/`.
 
-To install the compatible reviewer, create `~/.codex/skills/review-agent/` and copy `review-agent/` contents into it. If your host already supplies a reviewer, locate its real source and preserve a backup before an owner-authorized update; do not create a second conflicting alias blindly.
+Invoke it with `/agent-orchestra` in Claude Code or `$agent-orchestra` in Codex.
 
-Invoke `/subagent-orchestra` in Claude Code or `$subagent-orchestra` in Codex, or ask for a section-by-section application review. Use `$review-agent` in Codex for the compatible reviewer entry. Installation copies files; an invocation writes checked outcomes only to your local ledger (`data/ledger.jsonl` in the installed folder). Back up custom instructions before upgrading and merge them deliberately.
-
-Upgrading from model-orchestra: copy your old skill's `data/ledger.jsonl` into the new folder's `data/` and delete the old folder.
+**Upgrading from model-orchestra or subagent-orchestra:** copy your old `data/ledger.jsonl` and `data/lessons.jsonl` into the new folder's `data/`, then delete the old folder.
 
 ## Quick start
 
-Run these from the repository root. After installing, the same files live in `~/.claude/skills/subagent-orchestra/` (`scripts/pair.mjs`, `data/config.example.json`).
+Run these from the repository root. After installing, the same script is at `~/.claude/skills/agent-orchestra/scripts/orchestra.mjs`.
 
 ```bash
-node skill/scripts/pair.mjs brief
-node skill/scripts/pair.mjs pick review-ui claude-haiku-5-5 claude-sonnet-5-5 --config skill/data/config.example.json --preset frugal
-node skill/scripts/pair.mjs log --file outcome.json
-node skill/scripts/pair.mjs lesson --file lesson.json
+node skill/scripts/orchestra.mjs tune                       # show the two Claude Code settings it would set
+node skill/scripts/orchestra.mjs tune --apply               # set them, keeping a backup
+node skill/scripts/orchestra.mjs models update              # refresh the registry (no model calls)
+node skill/scripts/orchestra.mjs models list                # models, pools, tiers and prices
+node skill/scripts/orchestra.mjs bench --new                # three small checked tasks per new model (model calls)
+node skill/scripts/orchestra.mjs brief                      # verified routes and active lessons: start here
+node skill/scripts/orchestra.mjs pick review-code --preset balanced
+node skill/scripts/orchestra.mjs usage --last 3             # where the last three sessions' usage went
+node skill/scripts/orchestra.mjs log --file outcome.json    # one row per worker task you verified
+node skill/scripts/orchestra.mjs lesson --file lesson.json  # the one rule that most changed total work
+node skill/scripts/orchestra.mjs models rollback            # restore the previous registry
 ```
 
-- `brief` prints the best verified route per role from your ledger, and the active lessons. With no ledger yet, every role starts as a trial.
-- `pick` plans a route for a role and estimates its cost offline. It never calls a model.
-- `log` records one lead-verified row per worker task. The fields are in [evidence.md](skill/references/evidence.md).
-- `lesson` records the one thing that most changed total work this time, for example
-  `{"id":"pin-reviewer-commit","rule":"reviewers read a pinned commit","scope":"review","evidence":"<what you checked>","outcome":"support"}`.
-  Use `"outcome":"contradict"` when a lesson failed.
+`pick` estimates cost and ranks the candidates offline. It never calls a model. Every option is listed in [docs/configuration.md](docs/configuration.md).
 
-### Presets
+## How it works
 
-| Preset | Effort | Ranks routes by |
-| --- | --- | --- |
-| `frugal` | low | per-request price |
-| `balanced` | medium | complete-task cost (worker + verification + rework) |
-| `thorough` | high | quality ranking only |
+1. **Leader**: plans the job and keeps every irreversible step.
+2. **Brief**: `brief` prints the verified route per role, the active lessons and the registry.
+3. **Route**: `pick` chooses the cheapest tier that passes for the role.
+4. **Fire**: workers run in their own quota pool, each with a model and effort named.
+5. **Verify and learn**: the leader checks each claim, then logs outcomes and at most one lesson.
 
-`frugal` also allows trial routes, only for cheaply checked work.
-
-Other knobs:
-
-- `--effort low|medium|high|xhigh|max`. Explicit `--effort` and `--cost-mode` beat the preset; `--allow-trial` only adds permission.
-- `--cost-mode complete-task|worker-request|quality`.
-- `--max-task-usd <n>`: a route whose cost is unknown or above this per-task budget is not picked.
-- `--risk high`: the decision stays with the lead, and independent reviewers count as evidence only.
-
-Prices live in `data/config.example.json` with their source and date. A snapshot older than 30 days makes the cost "unknown", never "cheap". Copy the file, refresh it from the cited page, and point `--config` at the copy.
-
-## Honest limits
-
-- The planner is a heuristic. Its quality bands and sample sizes are settings to adjust from your own complete-task results.
-- An unknown cost is not a cheap cost. API-equivalent estimates, subscription quota and actual invoices are different numbers; the planner's figures are API-equivalent estimates.
-- The claimed-precision score cannot measure bugs a reviewer missed. Risky routing needs a representative evaluation and lead checks.
-- No model is promised to be always the best or always the cheapest. The evidence notes ([0.3.0](docs/evidence-2026-10-11-subagents.md), [0.2.0](docs/evidence-2026-10-11.md)) separate verified observations from recommendations.
-
-More detail: [cost and evidence controls](docs/cost-model.md), [runtime dispatch](skill/references/dispatch.md), [review coverage](skill/references/app-review.md) and [bounded playbooks](docs/playbooks.md).
-
-## Checks and contribution
-
-```bash
-node --test tests/*.test.mjs
-node --check skill/scripts/pair.mjs
-node skill/scripts/pair.mjs stats
+```mermaid
+flowchart LR
+  L[Leader plans] --> B[brief: routes, lessons, registry]
+  B --> R[pick: cheapest tier that passes]
+  R --> F[fire: workers in their own pool]
+  F --> V{Leader verifies}
+  V -->|wrong or empty| R
+  V -->|confirmed| G[log and lesson]
+  G --> B
 ```
 
-Bug reports, representative evaluations and small documented improvements are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). The skill is MIT-licensed.
+## Benchmarks
 
-## Support
+`bench` gives each model three tiny tasks with one right answer: find the buggy line in a six-line function, extract a total from an invoice sentence, and spot a removed permission check in a diff. It records pass or fail, time and cost in `data/bench.jsonl`. The results are small smoke tasks, not a leaderboard, and passing them does not prove a model can review a release. See [docs/benchmarks.md](docs/benchmarks.md).
 
-GitHub Sponsors is not active for this account yet; sponsorship activation is pending financial onboarding. The repository's funding configuration names the verified owner, but it is not a live payment promise. Until activation, support the project through bug reports, evaluations and contributions; see [SUPPORT.md](SUPPORT.md).
+## Configuration
+
+Data files, environment variables, `pick` and `tune` options, and pricing rules are in [docs/configuration.md](docs/configuration.md). The modules and the self-improvement loop are in [docs/architecture.md](docs/architecture.md).
+
+## Compared with Claude Managed Agents
+
+Claude Managed Agents runs agents in Anthropic's cloud, on an API key, with a session budget and a runtime fee. Agent Orchestra runs on your machine inside Claude Code, Codex or another host, and it spends your subscription quota instead. The ideas it borrows (per-worker model and effort, an advisor, compaction, budgets) are reimplemented locally. See [skill/references/managed-agents.md](skill/references/managed-agents.md).
+
+## Privacy
+
+- The ledger, lessons, bench rows and model registry stay on your machine, in the skill's `data/` folder.
+- Claude Code transcripts are read locally from `~/.claude/projects/`. Nothing is uploaded.
+- The only network calls are these:
+  - `models update` fetches the public OpenRouter model catalogue. `--offline` skips it.
+  - `models update` lists models from a provider's endpoint when its API key variable is set (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or `XAI_API_KEY`).
+  - `bench` makes model calls. Nothing else does.
+
+## Contributing, support and sponsorship
+
+- Contributing: see [CONTRIBUTING.md](CONTRIBUTING.md). Run `node --test` before you open a pull request.
+- Support: bug reports, anonymized evaluations and small tested improvements help most. See [SUPPORT.md](SUPPORT.md).
+- Sponsor: sponsorship opens once GitHub Sponsors is approved. The funding file names the owner; it is not a live payment link yet.
+
+## License
+
+[MIT](LICENSE)

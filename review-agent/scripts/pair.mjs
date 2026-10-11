@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const DATA = path.join(HERE, '..', 'data');
+const DATA = process.env.AGENT_ORCHESTRA_DATA || path.join(HERE, '..', 'data');
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
 // Named bundles of the three knobs. Explicit --effort and --cost-mode still win; --allow-trial can only add permission.
 // frugal: cheaply checked work (search, wording, UI suggestions) at low effort, priced per request.
