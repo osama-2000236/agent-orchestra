@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest. Model Orchestra is small on purpose. Changes that make the skill simpler or more
+Thank you for your interest. Agent Orchestra is small on purpose. Changes that make the skill simpler or more
 accurate are welcome. Changes that add machinery are less likely to be accepted.
 
 ## Before you open a pull request
@@ -16,10 +16,10 @@ accurate are welcome. Changes that add machinery are less likely to be accepted.
 Run these from the repository root before you open the pull request:
 
 ```bash
-node --test tests/*.test.mjs             # behavioral routing and failure cases
-node scripts/sync-review-agent.mjs       # after editing shared skill resources
-node skill/scripts/pair.mjs stats        # must identify historical/example evidence honestly
-node --check skill/scripts/pair.mjs      # syntax check
+node --test                                # unit tests: routing, ledger, lessons, usage, registry, bench
+node scripts/sync-review-agent.mjs         # after editing shared skill resources
+node skill/scripts/orchestra.mjs stats     # must identify historical/example evidence honestly
+node --check skill/scripts/orchestra.mjs   # syntax check
 ```
 
 The files in `examples/` are workflow sketches. Their top-level `return`/`await` and exported metadata require a runner. The distribution test converts only the metadata export and compiles each async body without executing it. No native-agent or live runner compatibility is implied; run an adapted sketch in your actual runner before relying on it.

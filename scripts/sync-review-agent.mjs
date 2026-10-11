@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = path.join(root, 'skill');
 const target = path.join(root, 'review-agent');
-for (const name of ['scripts/pair.mjs', 'data/config.example.json', 'data/ledger.example.jsonl', 'references/app-review.md', 'references/dispatch.md', 'references/evidence.md']) {
+for (const name of ['scripts/pair.mjs', 'scripts/orchestra.mjs', 'scripts/usage.mjs', 'scripts/models.mjs', 'references/managed-agents.md', 'data/config.example.json', 'data/ledger.example.jsonl', 'references/app-review.md', 'references/dispatch.md', 'references/evidence.md']) {
   const out = path.join(target, name);
   fs.mkdirSync(path.dirname(out), {recursive: true});
   fs.copyFileSync(path.join(source, name), out);

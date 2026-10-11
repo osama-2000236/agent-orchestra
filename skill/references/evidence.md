@@ -24,6 +24,12 @@ Those example numbers are synthetic schema illustration, not measured job result
 
 ## Judgment after each invocation
 
-Write one short retrospective in the project handoff or local evidence: observed outcome, total verification/rework, the narrow proposed improvement, supporting artifact and an expiry/recheck condition. Include “no change justified” when appropriate. Failure paths should improve the packet or capability probe before increasing model effort or fan-out.
+Record one lesson with `pair.mjs lesson --file lesson.json`:
+
+```json
+{"id":"grade-severity-yourself","rule":"Re-grade every worker's BLOCKING label against the repo's blocking rule before acting","scope":"review packets","evidence":"<job, counts, artifact>","outcome":"support"}
+```
+
+Reuse an existing `id` to add support, or send `"outcome":"contradict"` when the rule failed. Two supports make a lesson active and `pair.mjs brief` shows it at the start of every later job; when contradictions reach the support count it is retired and hidden. Failure paths should improve the packet or capability probe before increasing model effort or fan-out. Skipping the lesson when nothing changed total work is fine.
 
 Before promoting an improvement: anonymize sensitive data, compare a baseline and candidate on representative fixtures, obtain an independent forward test with only the request and raw artifacts, and review the diff. A tiny sample stays provisional. Keep confirmed scope-specific findings separate from universal workflow instructions. Retire rules contradicted by later evidence; do not accumulate one absolute rule per error.

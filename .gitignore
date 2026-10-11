@@ -4,3 +4,12 @@ skill/data/ledger.jsonl
 review-agent/data/ledger.jsonl
 .DS_Store
 Thumbs.db
+skill/data/lessons.jsonl
+review-agent/data/lessons.jsonl
+skill/data/models.json
+skill/data/overrides.json
+skill/data/bench.jsonl
+skill/data/history/
+review-agent/data/models.json
+review-agent/data/bench.jsonl
+review-agent/data/history/
