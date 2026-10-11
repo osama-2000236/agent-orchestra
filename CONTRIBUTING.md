@@ -16,7 +16,8 @@ accurate are welcome. Changes that add machinery are less likely to be accepted.
 Run these from the repository root before you open the pull request:
 
 ```bash
-node skill/scripts/pair.mjs stats        # must print the example table without errors
+node --test tests/*.test.mjs             # behavioral routing and failure cases
+node skill/scripts/pair.mjs stats        # must identify historical/example evidence honestly
 node --check skill/scripts/pair.mjs      # syntax check
 ```
 
@@ -30,6 +31,8 @@ Also check by hand:
 - every relative link in the Markdown files resolves;
 - every `mermaid` block renders on GitHub;
 - the SVG files still open in a browser.
+
+New routing defaults need versioned model/effort evidence, cost basis, full verification/rework cost and a representative evaluation. Do not label three claims proof or transfer an old alias's quality to a new model. Runtime failures and absent visual/hardware evidence must stay visible. Keep ledgers private; publish only deliberately anonymized summaries.
 
 ## Pull request
 

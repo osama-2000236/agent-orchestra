@@ -1,0 +1,37 @@
+# Dispatch across the runtime that actually exists
+
+Check local help and capabilities first; these examples were verified against Claude Code 2.1.296 on 2026-10-11. Availability and defaults can change. Native host tools follow their own schema, authorization and model list; never copy Claude-specific flags into them.
+
+## Claude Code
+
+With an Agent tool, define a bounded agent with `model`, `effort` and a real `tools` list. Do not use a conversation fork when an independent first opinion or different model is required. Confirm the running model in task metadata. User/organization overrides can affect the result.
+
+For a supported external worker, use print mode and JSON output. Store prompt/agent JSON as UTF-8 files; pipe the prompt or pass a file as documented, not shell-built JSON containing user text. On the installed CLI, `--agents` accepts a JSON file in print mode and `--agent` selects its named agent:
+
+```powershell
+Get-Content -Raw -LiteralPath packet.md | claude --print --agents agents.json --agent design-review --model haiku --effort medium --max-budget-usd 1 --output-format json --tools 'Read,Grep,Glob' --allowedTools 'Read,Grep,Glob' > report.json
+```
+
+```json
+{"design-review":{"description":"Review the supplied UI artifacts","prompt":"Read only. Return specific evidence, limitations and no changes.","model":"haiku","effort":"medium","tools":["Read","Grep","Glob"]}}
+```
+
+The lead can instead enable Agent and ask the main CLI to orchestrate two named workers using `--agents`; allow only tools they need. Log orchestration overhead and every worker result. It is a different experiment from running one Haiku worker directly. No tool can inspect a screenshot unless image/browser access is actually provided.
+
+`--max-budget-usd` is a print-mode session cap, not an exact invoice or a universal hard cap for other runtimes. Inspect JSON `is_error`, subtype, modelUsage and any permission denials, not only process exit. Attest actual model identity; raw outputs remain private if they contain repository information. Exact applied effort may not be exposed in JSON when an organization clamps it; record that uncertainty.
+
+Authoritative references: [subagents](https://code.claude.com/docs/en/sub-agents), [CLI flags](https://code.claude.com/docs/en/cli-reference), [effort configuration](https://code.claude.com/docs/en/model-config). Subagent per-invocation effort requires v2.1.292+, and file-based `--agents` in print mode requires v2.1.281+.
+
+## Other native agents and CLIs
+
+Prefer the native host's structured spawn/review APIs when available. Discover their real model/effort options and context rules. A full-history fork may inherit the parent's model and prohibit overrides. Record its returned model when exposed; if the host does not expose attestation, say so.
+
+For Codex or another vendor CLI, read installed `--help`, choose its supported read-only sandbox for a review, and use a pinned detached worktree. Do not select dangerous permission-bypass flags to recover from a broken sandbox. A previously observed Windows `elevated` sandbox failure was solved with supported `unelevated` configuration; treat that as a local diagnostic option, not a universal setting.
+
+Probe a required unavailable runtime with one small read-only capability check. Report auth/model/quota failure once, make at most one materially corrected retry, then preserve the packet and proceed with independent tasks or a disclosed permitted fallback. Do not spend a paid model call merely to run a shell version command when local help proves capability.
+
+## Concurrency and artifacts
+
+Use the host's actual free slots, not a fixed “four to six workers” recipe. Reuse an idle worker for a focused follow-up when its context is small and relevant; a new focused packet can be cheaper than repeatedly replaying a long history. Measure before turning that into a default. Writers need disjoint paths or owned worktrees; readers need pinned commits. Exclusive app tests, packaging and deployment are not parallel review jobs.
+
+Every report includes candidate hash, requested/actual model, requested/applied effort or uncertainty, tools attempted/denied, duration, token categories, cost basis, finding/check outcomes and exact next step. If one worker fails, preserve its failure and continue the others; do not fabricate a clean joint verdict.

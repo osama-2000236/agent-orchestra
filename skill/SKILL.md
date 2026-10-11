@@ -1,130 +1,52 @@
 ---
 name: model-orchestra
-description: Orchestrate several AI models by role and by evidence. Use when the user says "orchestrate models", "combine models", "cut AI cost", "multi-agent review", "pair Opus with Haiku", "use a second vendor to review", or names model-orchestra. One lead model plans and verifies; cheaper models scout, write tests and implement bounded slices; an independent second vendor reviews a pinned commit. Every outcome is logged so the next model pick is based on evidence. Not for single-step edits.
+description: Review an application section by section, or coordinate a substantial engineering job across available AI agents with checked evidence, model/effort/budget controls and independent verification. Use for whole-app audits, multi-agent review, model-orchestra requests, or explicit cost-aware delegation. Not needed for routine single-step edits.
 ---
 
-# model-orchestra: roles by evidence
+# Model Orchestra
 
-One **lead** (this session) owns the plan, every irreversible call and the final verdict. Workers get bounded
-roles. Who gets which role comes from `scripts/pair.mjs` and `data/ledger.jsonl`, which hold verified outcomes
-from past jobs, not from reputation. Every job writes its outcomes back, so the next pick is sharper.
+The lead owns judgment and the final result. Delegation is a means to get useful independent evidence, not a quota of agents to fill. Respect the user's model choices, existing authorization, runtime restrictions and project rules. This skill does not authorize deployment, secret access or a different scope by itself.
 
-`PAIR` below means `node "<skill-dir>/scripts/pair.mjs"`.
+## Start with a reviewable scope
 
-## 1. Start
+Read the repository rules and active handoffs. Preserve other sessions' work; use an owned worktree for changes. Record Goal, Acceptance, current commit, owned paths, budgets and the exact next action in a resumable handoff.
 
-1. Read the repo's rules file (`AGENTS.md`, `CLAUDE.md`, or similar). Repo rules beat this skill.
-2. Freeze **Goal** and **Acceptance** before any edit. Each acceptance check names the command that proves it.
-3. Split the job into roles. For each role run `PAIR pick <role> <candidates...>`:
-   - `proven` top pick: assign it. The lead verifies its output at the normal level (section 3).
-   - `trial` (fewer than 3 checked claims): assign only when verification is cheap. The lead checks **every** claim.
-   - Score below 0.6: the lead keeps the role, or picks the next candidate.
-4. Hard rules override the score:
-   - Money, stock, permissions, security, data migration, posted history and release verdicts: the lead decides
-     and verifies, whoever wrote the first draft.
-   - One writer per file at a time. UI files and core files never share a writer in the same round.
-   - Workers never commit, push, merge, package, delete, or touch secrets.
+For an entire-app review, make a section-by-section coverage matrix before dispatch. Read [references/app-review.md](references/app-review.md). Include correctness, permissions/security, data compatibility/recovery, reliability, performance, design/accessibility/RTL, test quality, maintainability and release/documentation. Mark every dimension as inspected, exercised, not applicable or blocked with its evidence. “All” means this declared coverage, never a proof that no defect can exist.
 
-## 2. Dispatch
+Separate stable release acceptance from the audit queue. Triage additional findings by risk and project rules; do not restart a green release gate for every unrelated hardening suggestion. A user who expands the review scope gets an expanded matrix, not an unbounded review loop.
 
-| Runtime | How |
-| --- | --- |
-| Claude models | `Agent` tool with `model: haiku`, `sonnet`, `opus` or `fable`. Pin it, and check the returned metadata names the same model. |
-| Second vendor (for example Codex CLI) | Read-only review on a pinned commit (see below). |
+## Pick the runtime, model and effort from evidence
 
-Every worker prompt carries:
-- exact files and line ranges, and the frozen Acceptance;
-- the repo rule paths, and what is out of bounds (frozen directories, secrets);
-- the tools it needs. Read-only workers still need Read, Grep and Glob. A missing tool list has failed a whole dispatch;
-- the output shape: `file:line - claim - evidence - blocking?`.
+1. Inventory callable agent tools, CLI versions, supported models, permission modes, concurrency and billing basis. Read [references/dispatch.md](references/dispatch.md) for the runtime actually present. Prefer native agents when their required model and tools exist. Use a supported CLI worker when they do not; do not pretend a native model picker offers Haiku.
+2. Use exact model versions and supported effort levels. An alias is only a request; attest the returned model metadata. Distinguish requested effort from applied effort when a runtime clamps it.
+3. Copy `data/config.example.json` to a local configuration and refresh the cited pricing before a paid-cost decision. `node <skill-dir>/scripts/pair.mjs pick review-ui --config <config> --effort medium --allow-trial --json` creates an offline plan, not a model call. `--allow-trial` means every output is cheaply verifiable; omit it otherwise. Add `--max-task-usd` for an estimated per-request filter; runtime spend caps remain necessary.
+4. The planner groups evidence by role, exact model and effort. It selects within a configurable quality band using comparable sourced API-equivalent estimates. Unknown costs are not cheap. Historical example rows do not establish your model's capability. Sparse evidence remains a trial; even an observed route is not “proven”. Read [references/evidence.md](references/evidence.md) when changing these controls or recording outcomes.
+5. Use a bounded pilot when quality/cost evidence is absent. Lower effort is suitable for cheaply checked search or wording; raise it only for an observed failure or a documented risk. Official effort guidance is a starting hypothesis, not your project's benchmark. Never claim globally optimal quality or price from one sample.
 
-Parallel writers on separate branches get their test ids pre-assigned ("ids FX-U39 to FX-U40 are yours"). Otherwise
-they collide on merge. When a merge joins two appended blocks, check that the shared closing brace survived.
+Money, stock, permissions, security, old-data migration and release verdicts stay the lead's responsibility. `--risk high` therefore returns no delegated decision; reviewers can still provide independent evidence. The author cannot independently approve its own fix. A different vendor is useful when available and justified, but an independent same-model reviewer is still independent of authorship; do not invent vendor diversity.
 
-If a secret (a signing key, a token) is needed for tests, say "it is present, do not open it". "Never open X" alone
-makes a worker skip the runs.
+## Dispatch only work that can be checked
 
-Independent roles go out in one message, in parallel.
+Give each worker a compact packet: goal, pinned commit/diff, repository rules, allowed paths/tools, exclusions, acceptance commands or artifacts, exact output shape, model/effort, time/spend cap and stop condition. Supply minimal context without supplying a first reviewer's desired answer. Read-only agents need actual read/search tools. Say a required test key is present but must not be opened; do not copy or print it for the agent.
 
-**Reviewers review a pinned commit, never a moving tree.** Give each reviewer its own detached worktree:
-`git worktree add --detach <tmp-dir> <sha>`. The writer can keep editing the branch while the reviewer reads.
+Parallelize independent reads and disjoint writes within actual available slots. Shared integration, migrations, approvals and exclusive application tests remain sequential. One writer owns a file at a time; separate worktrees and preassigned test IDs prevent collisions. A reviewer uses a pinned detached tree, not a moving writer tree. New native agents are not automatically authorized by the presence of this skill; follow the host's delegation rules.
 
-**Second vendor, read-only.** Run the vendor's CLI in its read-only sandbox mode, from the detached worktree, with the
-review packet as the prompt. Use `codex exec` for Codex CLI, and check the flags for your installed version with
-`--help`. Ask for findings in the same output shape. Use it on money, permission and security diffs, where a
-same-family reviewer is most likely to share a blind spot. Run it at a moderate effort, not the maximum.
+Design work follows the user's designated design model. Include screenshots/reference, viewport and theme/language coverage, keyboard/accessibility evidence and design intent. A wording-only Haiku pass is not evidence about the whole layout. If screenshots or a browser are unavailable, mark visual checks unverified.
 
-## 3. Verify (the lead, always)
+Output: `id, section, dimension, priority, file:line, scenario, evidence, proposed check, blocking reason`. An empty finding list is valid. Require limitations and candidate/model attestation alongside findings.
 
-- A claim is not a fact until the lead reproduces it: read the cited line, run the test, or write the failing test.
-- Code from a worker: read the diff, run the tests it touches. Defect-first: the failing test exists before the fix.
-- Classify each claim: **confirmed** (right), **refuted** (wrong, or a "defect" that is by design), **rework**
-  (accepted, but the lead had to fix it).
-- Blocking findings: fix them together in one commit. At most two review rounds. Round two reviews only the fix commit.
-- Anything else goes to a backlog line with the reviewer's evidence.
+## Verify, repair and finish
 
-## 4. Record evidence (before reporting)
+Reproduce a finding before declaring it confirmed. Verify every cheap worker's claim; review its diff and all callers. For money/stock/permission or migration defects, confirm a test fails for the actual defect before the fix, then verify green plus lifecycle/neighbour/old-data checks. Never hide a failure with weaker validation, edited expectations or expected-failure marks.
 
-For every worker task, one line:
+Fix a review round's blockers together. Follow the project's review cap; absent one, use two bounded rounds and a focused recheck of the last fix. New blockers introduced by that fix still need resolution; a round limit does not make a defect acceptable. Record unrelated findings in the queue with evidence. Run required gates on the final candidate once; broaden testing only when new failures or changed scope justify it.
 
-```
-PAIR log '{"project":"<repo>","task":"<what>","model":"haiku","role":"review-core","confirmed":3,"refuted":2,"rework":0,"minutes":6,"note":"<what was wrong and why>"}'
-```
+Report a worker/runtime failure immediately and continue independent work. Correct a malformed invocation once; after repeated auth/quota/model/sandbox failure, checkpoint that path and use a permitted fallback or the lead. Never silently substitute a requested model, bypass permissions, discard partial edits or label an unrun check passed. A shared quota outage is not evidence against a model's reasoning quality.
 
-Log the lead's own roles too (`opus` with `implement-core` or `diagnose`). The lead is a candidate like any other.
-Orchestrator mistakes (a bad prompt, a missing tool) go in `note`, not against the model. `PAIR stats` shows the table.
+Finish the authorized merge, push, packaging/publication and cleanup required by the project. Preserve other work, secrets and running user applications. Report concrete checks, residual risks and blocked external requirements; confidence comes from evidence, not “100%” rhetoric.
 
-## 5. Report
+## Learn on every invocation, without accumulating dogma
 
-What merged or changed, the counts the lead ran, and two lists: **verified by the lead** and **reported by workers**,
-each with how it was checked. Name anything waiting on the user.
+Before reporting, append checked outcomes to your local ignored ledger using `pair.mjs log --file <outcome.json>`. Record failures and lead verification cost/time too. Empty reviews are not confirmed claims. Capture one judgment: what reduced total work, what caused rework, and whether a routing change is supported. Read [references/evidence.md](references/evidence.md).
 
-## 6. Playbooks
-
-Step-by-step versions are in `docs/playbooks.md` of the repository. The short forms:
-
-1. **Audit fan-out with skeptics.** Freeze the scope (paths, PRs, time window). Run 4 to 6 read-only auditors in
-   parallel, one per area, each returning findings with evidence. Each serious finding (blocking, money, stock,
-   permission) gets two skeptics. A skeptic tries to refute it with concrete evidence from the code. A finding
-   survives while at least one skeptic cannot refute it, and the lead checks every surviving blocking claim. A planner
-   then orders the survivors into at most six jobs: money, stock and permission first; drop what is unverified or cosmetic.
-2. **Defect-first fix loop.** Reproduce the defect with a scratch script. A test-writer writes a test that fails today and
-   asserts the correct behaviour. The lead confirms the test is red. An implementer makes it green with the smallest
-   fix, found at the root: grep every caller first. Never mark a failing test as skipped or expected-to-fail to get green.
-3. **Bounded two-round review.** Round one: two or more reviewers in parallel, each on a detached worktree of the
-   pinned commit (one Haiku-class, one second vendor for money or permission diffs). The lead classifies each claim.
-   Blocking findings are fixed in one commit with their failing tests. Round two reviews only that fix commit. What
-   remains goes to the backlog. No third round unless the user asks.
-4. **Parallel slices in worktrees.** Split the job into slices on disjoint files. Each slice gets its own branch and
-   worktree, and pre-assigned test ids. The lead integrates them in one place, reads each merge, and runs the
-   tests that touch the joined files.
-5. **Research by market practice.** One researcher per decision cluster, using vendor documentation first and blogs
-   last, with the source URL for every claim. Recommend what most leading products do, or the most conservative
-   correct option when they disagree. The lead decides. Anything that needs a legal or tax ruling goes to the user.
-
-## 7. Failure handling
-
-- A second vendor can fail for reasons outside the task: a broken sandbox (every command refused, or an
-  "insufficient evidence" result in about 30 seconds) or a dropped connection (reconnect loops, timeouts).
-- Probe before you plan on it: send a trivial packet ("run node --version") at low effort. If it fails, tell the user.
-- Retry once. If the retry fails, take the next ledger pick for that role, and tell the user which model you used and why.
-- Never report a result you did not get. A step that did not run is reported as not run.
-
-## 8. Cost guidance
-
-- Scouts, test-writers, UI reviewers and small UI implementers: the cheapest model with a proven score.
-- Money, permission and security review: a second vendor, on the pinned commit, in addition to a cheap reviewer.
-- Core money and permission logic, root-cause diagnosis, verdicts: the lead.
-- Haiku-class core fixes often miss a sibling path. Give every cheap core fix a second reviewer and budget for a rework round.
-- The ledger's `COST` weights are relative guesses. Replace them with your own price ratio in `scripts/pair.mjs`.
-- Score ties: within 0.08, `pair.mjs` picks the cheaper model. The hard rules still apply.
-
-## Starting defaults (used when the ledger has no row)
-
-| Role | First choice | Why |
-| --- | --- | --- |
-| scout, log-triage, review-ui, implement-ui (small) | haiku | cheap and wide; the lead verifies |
-| review-core, test-write | haiku, plus a second vendor for money or permission diffs | a second view on correctness |
-| implement-core, diagnose, design decisions | lead | a wrong answer costs the most |
-
-The ledger overrides these defaults as soon as it has verified outcomes for a role.
+Keep a proposed change local until it survives a relevant evaluation and independent review. Do not rewrite the installed skill automatically after every task. Promote a narrow rule with its evidence, expiry/recheck condition and scope; roll it back when counterevidence appears. The right improvement may be no change. Never upload private ledgers or project details without authorization.
