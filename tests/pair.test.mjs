@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {plan, estimateCost, validateRow, tally, inspectReport} from '../skill/scripts/pair.mjs';
+import {plan, estimateCost, validateRow, tally, inspectReport, inspectCodexEvents} from '../skill/scripts/pair.mjs';
 
 const now = new Date('2026-10-11T12:00:00Z');
 const prices = (input, output) => ({source: 'https://example.test/provider-price', checkedAt: '2026-10-11', input, output});
@@ -164,4 +164,14 @@ test('CLI file logging, personal stats and no-seed routing work on paths with sp
     assert.equal(call(['log', '--file', input]).status, 1);
     assert.equal(fs.readFileSync(ledger, 'utf8').trim().split('\n').length, 1);
   } finally { fs.rmSync(dir, {recursive: true}); }
+});
+
+test('a Codex run whose shell never started is a sandbox failure, not a review', () => {
+  const cmd = (out, code) => JSON.stringify({type: 'item.completed', item: {type: 'command_execution', aggregated_output: out, exit_code: code, status: code ? 'failed' : 'completed'}});
+  const end = [JSON.stringify({type: 'item.completed', item: {type: 'agent_message', text: 'Review blocked'}}), JSON.stringify({type: 'turn.completed', usage: {input_tokens: 130620}})];
+  const blind = inspectCodexEvents([cmd('Failed to create unified exec process: helper_unknown_error: setup refresh had errors', -1), cmd('Failed to create unified exec process: helper_unknown_error', -1), ...end].join('\n'));
+  assert.equal(blind.usable, false); assert.equal(blind.errorKind, 'sandbox'); assert.equal(blind.unstarted, 2); assert.equal(blind.tokens.input_tokens, 130620);
+  const seeing = inspectCodexEvents([cmd('31e5140\n', 0), cmd('', 1), ...end].join('\n'));   // rg finding nothing exits 1: still a working shell
+  assert.equal(seeing.usable, true); assert.equal(seeing.unstarted, 0);
+  assert.equal(inspectCodexEvents(JSON.stringify({type: 'turn.failed', message: "You've hit your usage limit"})).errorKind, 'quota');
 });

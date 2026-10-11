@@ -36,8 +36,14 @@ Authoritative references: [subagents](https://code.claude.com/docs/en/sub-agents
 ## Codex as a worker (separate quota pool)
 
 ```bash
-codex exec -m gpt-6.1-sol -c model_reasoning_effort="low" --json --ephemeral --skip-git-repo-check -s read-only -C <pinned-worktree> - < packet.md
+codex exec -m gpt-6.1-sol -c model_reasoning_effort="low" -c windows.sandbox='"unelevated"' --json --ephemeral --skip-git-repo-check -s read-only -C <pinned-worktree> - < packet.md
 ```
+
+On Windows add `-c windows.sandbox='"unelevated"'`. Measured 2026-10-11: with the `elevated` sandbox from
+`~/.codex/config.toml`, three GPT-6.1-Sol reviews had every shell call fail ("helper_unknown_error: setup refresh had
+errors"); one still answered "Review blocked" after 130k input tokens, the other two kept reasoning blind. Run
+`orchestra.mjs inspect --file <events>.jsonl` on every Codex run: `errorKind: sandbox` means no file was read, so the
+answer is not a review. Probe first with one tiny packet ("run git rev-parse --short HEAD") before a fan-out.
 
 `--json` prints events: the answer is the last `item.type == "agent_message"`, tokens are on `turn.completed`.
 `codex review` reviews a diff directly. Codex's model list and effort levels live in `~/.codex/models_cache.json`

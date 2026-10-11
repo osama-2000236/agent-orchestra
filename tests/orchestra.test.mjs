@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {scan, price, priceFor, diagnose, sessionReport} from '../skill/scripts/usage.mjs';
 import {catalogueId, tierOf, newestClaude, buildRegistry, diffRegistry, saveRegistry, rollback, TASKS} from '../skill/scripts/models.mjs';
-import {tune} from '../skill/scripts/orchestra.mjs';
+import {tune, main, USAGE} from '../skill/scripts/orchestra.mjs';
 import {plan} from '../skill/scripts/pair.mjs';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'orchestra-test-'));
@@ -100,4 +100,10 @@ test('streamed blocks of one request count once with their final usage, and date
 test('a model that comes back after going missing is available again', () => {
   const r = buildRegistry({discoveredAt: '2026-10-12T00:00:00Z', hardware: {}, prices: {}, runtimes: [{runtime: 'claude-code', pool: 'claude', models: [{id: 'claude-haiku-5-5'}]}]}, {models: {'claude-haiku-5-5': {runtime: 'claude-code', available: false}}});
   assert.equal(r.models['claude-haiku-5-5'].available, true);
+});
+
+test('help never spends: bench --help prints usage instead of running a bench', async () => {
+  const seen = []; const log = console.log; console.log = s => seen.push(s);
+  try { for (const argv of [['bench', '--help'], ['bench', '-h'], ['help'], []]) await main(argv); } finally { console.log = log; }
+  assert.deepEqual(seen, [USAGE, USAGE, USAGE, USAGE]);
 });
