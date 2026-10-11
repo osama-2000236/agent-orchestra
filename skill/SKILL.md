@@ -49,7 +49,7 @@ Starting routes until your ledger has verified rows. Bench results are from 2026
 | design / UI / wording review (source) | haiku, medium | sonnet | 9 of 9 checked findings real in one release review |
 | correctness, permission or money review | haiku, **high** (ChatGPT pool: gpt-6-luna, low) | sonnet high, then a second vendor | Haiku **low** called a removed permission check "CLEAN"; Haiku high, Sonnet low and Luna low caught it |
 | small fix from an exact spec | haiku, medium | sonnet | 7 UI fixes, 726/726 tests, no rework |
-| second opinion on a risky diff | another vendor (Codex `gpt-6.1-sol`) | - | found money bugs two same-family reviews passed; on 2026-10-11 six confirmed payroll, loyalty and FX defects in a released build |
+| second opinion on a risky diff | another vendor (Codex `gpt-6.1-sol`) | - | found money bugs two same-family reviews passed; on 2026-10-11 six confirmed payroll, loyalty and FX defects in a released build; on 2026-10-12 it and Haiku high each found one blocking defect the other missed |
 | core implementation, diagnosis, verdicts | leader | - | a wrong answer costs the most |
 
 - **Effort before tier.** Raise effort on the same cheap model once before moving up a tier; low effort is for
@@ -84,7 +84,9 @@ not attestation: GPT-6.1 Sol signed its reports "GPT-6"; take the model from the
 
 - Wrong or empty answer: same model one effort up, once, with a sharper packet. Then the next tier. Then you.
 - Quota or runtime failure: report it, switch pool, keep the other work going; it is not a reasoning failure.
-- Never resend an identical packet. At most two review rounds; the second checks only the fix commit.
+- Never resend an identical packet. At most two review rounds; the second checks only the fix commit, and never skip it:
+  on 2026-10-12 a fix that passed the full gate (737 unit, 428 end-to-end) broke a sibling path; Haiku high found it
+  on the one-commit diff in 2 minutes.
 
 ## 6. Learn (before you report)
 
