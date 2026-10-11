@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {scan, price, priceFor, diagnose, sessionReport} from '../skill/scripts/usage.mjs';
 import {catalogueId, tierOf, newestClaude, buildRegistry, diffRegistry, saveRegistry, rollback, TASKS} from '../skill/scripts/models.mjs';
-import {tune} from '../skill/scripts/orchestra.mjs';
+import {tune, main, USAGE} from '../skill/scripts/orchestra.mjs';
 import {plan} from '../skill/scripts/pair.mjs';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'orchestra-test-'));
@@ -66,10 +66,17 @@ test('registry update keeps provider prices and overrides, marks vanished models
 });
 
 test('benchmark checks accept only the right answers', () => {
-  const [bug, extract, review] = TASKS;
+  const [bug, extract, review, trace] = TASKS;
   assert.ok(bug.check('4') && !bug.check('2') && !bug.check('14'));
   assert.ok(extract.check('{"total":42,"currency":"ILS"}') && !extract.check('{"total":42.5,"currency":"ILS"}'));
   assert.ok(review.check('BLOCKING: removed the canRefund permission check') && !review.check('CLEAN'));
+  assert.ok(trace.check('BLOCKING: delete subtracts points the return already took') && !trace.check('BLOCKING: points can go negative') && !trace.check('BLOCKING: no guard against negative or NaN points') && !trace.check('CLEAN'));
+  // Review of PR #4: a CLEAN that names the field, generic words without the mechanism, and right answers in other words.
+  assert.ok(!trace.check('CLEAN, nothing blocking; earnedBack is handled') && !trace.check('BLOCKING: points already negative on NaN') && !trace.check('BLOCKING: returned value of returnPart unchecked'));
+  assert.ok(trace.check('BLOCKING: deleteSale ignores the prior partial return') && trace.check('BLOCKING: deletes full earned despite earlier return') && trace.check('BLOCKING:Deleting partially returned sales deducts already reversed points.'));
+  // Round two: phrases, not loose words in any order.
+  assert.ok(!trace.check('BLOCKING: prior returned value unchecked') && !trace.check('BLOCKING: earlier function returned undefined'));
+  assert.ok(trace.check('BLOCKING: deleteSale ignores earlier returns') && trace.check('BLOCKING: ignores the points returned earlier') && trace.check('BLOCKING: double-counts points already taken back') && trace.check('BLOCKING: Deleting a sale ignores points already returned.'));
 });
 
 test('a failed benchmark rules a model out of the role; a pass keeps it a trial', () => {
@@ -100,4 +107,10 @@ test('streamed blocks of one request count once with their final usage, and date
 test('a model that comes back after going missing is available again', () => {
   const r = buildRegistry({discoveredAt: '2026-10-12T00:00:00Z', hardware: {}, prices: {}, runtimes: [{runtime: 'claude-code', pool: 'claude', models: [{id: 'claude-haiku-5-5'}]}]}, {models: {'claude-haiku-5-5': {runtime: 'claude-code', available: false}}});
   assert.equal(r.models['claude-haiku-5-5'].available, true);
+});
+
+test('help never spends: bench --help prints usage instead of running a bench', async () => {
+  const seen = []; const log = console.log; console.log = s => seen.push(s);
+  try { for (const argv of [['bench', '--help'], ['bench', '-h'], ['help'], []]) await main(argv); } finally { console.log = log; }
+  assert.deepEqual(seen, [USAGE, USAGE, USAGE, USAGE]);
 });

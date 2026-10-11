@@ -1,6 +1,6 @@
 # Benchmarks
 
-Three tiny tasks with one checkable answer each (`TASKS` in `skill/scripts/models.mjs`): locate the buggy line in a
+Tiny tasks with one checkable answer each (a fourth, `trace-money`, is below) (`TASKS` in `skill/scripts/models.mjs`): locate the buggy line in a
 split-the-total function (`find-bug`), extract a total and currency as JSON (`extract`), and judge a diff that removes
 a refund permission check (`review-diff`, right answer: BLOCKING with a reason). They measure reliability, speed and
 cost per model and effort, cheaply. They do not measure depth: passing them does not prove a model can review a
@@ -51,3 +51,16 @@ node skill/scripts/orchestra.mjs bench --targets claude-code:claude-haiku-5-5:lo
 
 Limits: three tasks, one machine, one day, at most four runs per cell. Treat differences of one pass as noise; treat a
 model that misses an obvious permission removal as unfit for that role at that effort until it passes again.
+
+## trace-money (2026-10-11)
+
+A fourth task from a real defect: [evidence-2026-10-11-sol-review.md](evidence-2026-10-11-sol-review.md). One sample each;
+the first check matched "again" inside "against", so Haiku low is re-scored here as the fail it was.
+
+| Model @ effort | Passed | Seconds | Answer |
+| --- | --- | --- | --- |
+| claude-haiku-5-5 @ low | **0/1** | 2.9 | "no guard against negative or NaN points" (wrong reason) |
+| claude-haiku-5-5 @ high | 1/1 | 4.8 | deleteSale ignores earnedBack |
+| claude-sonnet-5-5 @ low | 1/1 | 4.0 | deleteSale ignores earnedBack |
+| codex gpt-6-luna @ low | 1/1 | 4.8 | ignores points already returned |
+| codex gpt-6.1-sol @ low | 1/1 | 8.4 | deducts already reversed points |

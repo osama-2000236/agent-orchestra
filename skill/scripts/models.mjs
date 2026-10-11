@@ -126,12 +126,15 @@ export function rollback(dir) {
   return last;
 }
 
-// Three tiny tasks with one right answer each. They measure cost, speed and basic reliability per model and effort,
+// Four tiny tasks with one right answer each. They measure cost, speed and basic reliability per model and effort,
 // not depth: a model that fails them should not get the role; passing them does not prove it can review a release.
 export const TASKS = [
   {id: 'find-bug', role: 'review-code', prompt: 'Which line number has the bug? Reply with the number only.\n1 function split(total, n) {\n2   const part = Math.floor(total / n);\n3   const out = Array(n).fill(part);\n4   out[0] += total - part * (n - 1);\n5   return out;\n6 }\n// split must return n integers that sum to total', check: a => /^\D*4\D*$/.test(a)},
   {id: 'extract', role: 'scout', prompt: 'Return only JSON {"total":number,"currency":string} for: "Invoice 88 - 3 boxes at 12.50 each, shipping 4.50, total due 42.00 ILS".', check: a => { try { const j = JSON.parse(a.replace(/^[^{]*/, '').replace(/[^}]*$/, '')); return j.total === 42 && /^ILS$/i.test(j.currency); } catch { return false; } }},
   {id: 'review-diff', role: 'review-code', prompt: 'Review this diff. Reply BLOCKING:<reason in 5 words> or CLEAN.\n-  if (!user.canRefund) throw new Error("denied");\n   refund(order.id, order.total);\n+  log("refund", order.id);', check: a => /BLOCKING/i.test(a) && /(permission|auth|denied|canRefund|guard|access)/i.test(a)},
+  // From a real defect (SmartStore 3.65.2, found by GPT-6.1 Sol, 2026-10-11): a delete that ignores what a partial return
+  // already took back. The three tasks above separate only Haiku at low effort from the rest; this one traces state.
+  {id: 'trace-money', role: 'review-code', prompt: 'Review this code. Reply BLOCKING:<reason in 8 words> or CLEAN.\nfunction returnPart(sale, c, share) {\n  const took = Math.floor(sale.earned * share);\n  c.points -= took;\n  sale.earnedBack = (sale.earnedBack || 0) + took;\n}\nfunction deleteSale(sale, c) {\n  c.points -= sale.earned;\n}', check: a => /^\W*BLOCKING/i.test(a) && (/\bearnedBack\b/i.test(a) || /\b(?:partial(?:ly)? return(?:s|ed)?|(?:earlier|prior|previous) returns?|already (?:returned|reversed|refunded|took|taken)|(?:took|taken) back|returned earlier)\b/i.test(a))},
 ];
 
 // One prompt through one runtime; returns the answer, seconds and API-equivalent cost when the runtime reports it.

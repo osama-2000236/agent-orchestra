@@ -93,6 +93,21 @@ export function inspectReport(r) {
     cost: {basis: models.length && models.every(m => m.costBasis === 'list') && Number.isFinite(r.total_cost_usd) ? 'api-equivalent' : 'unknown', usd: Number.isFinite(r.total_cost_usd) ? r.total_cost_usd : null},
     next: failed ? 'preserve partial artifacts, report the failure, continue independent work; do not score this as a model reasoning failure' : 'verify candidate, model, tools and every claim before acceptance'};
 }
+// `codex exec --json` events. A run whose every shell call failed to start (Windows `elevated` sandbox,
+// "helper_unknown_error", 2026-10-11) still answers, so its answer is a blind guess, not a review.
+export function inspectCodexEvents(textOrLines) {
+  const events = String(textOrLines).split(/\r?\n/).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } });
+  const answer = events.filter(e => e.item?.type === 'agent_message').pop()?.item?.text ?? null;
+  const tokens = events.filter(e => e.type === 'turn.completed').pop()?.usage ?? null;
+  const cmds = events.filter(e => e.type === 'item.completed' && e.item?.type === 'command_execution').map(e => e.item);
+  const unstarted = cmds.filter(c => c.exit_code === -1 || c.exit_code !== 0 && /Failed to create .*process|helper_unknown_error/i.test(c.aggregated_output ?? '')).length;
+  const errors = events.filter(e => e.type === 'error' || e.type === 'turn.failed').map(e => e.message ?? e.error?.message ?? '').join('\n');
+  const blind = cmds.length > 0 && unstarted === cmds.length;
+  const errorKind = blind ? 'sandbox' : answer ? null : /usage limit|quota|rate.limit/i.test(errors) ? 'quota' : 'runtime';
+  return {usable: !errorKind, errorKind, commands: cmds.length, unstarted, tokens, answer,
+    next: blind ? 'no shell call ran: fix the sandbox (Windows: -c windows.sandbox=\'"unelevated"\'), rerun; not a reasoning result'
+      : errorKind ? 'preserve the events, report the failure, continue independent work' : 'verify every claim before acceptance'};
+}
 export function estimateCost(model, request, now = new Date()) {
   const p = model.pricing;
   if (!p) return {usd: null, basis: 'unknown', reason: 'no sourced price configuration'};
@@ -208,7 +223,8 @@ export function cli(argv = process.argv.slice(2)) {
   }) : [];
   if (command === 'inspect') {
     if (!options.file) throw new Error('inspect --file report.json');
-    const result = inspectReport(JSON.parse(fs.readFileSync(options.file, 'utf8').replace(/^\uFEFF/, '')));
+    const raw = fs.readFileSync(options.file, 'utf8').replace(/^\uFEFF/, '');
+    const result = options.file.endsWith('.jsonl') ? inspectCodexEvents(raw) : inspectReport(JSON.parse(raw));
     console.log(JSON.stringify(result, null, 2));
     if (!result.usable) process.exitCode = 1;
   } else if (command === 'log') {

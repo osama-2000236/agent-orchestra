@@ -15,6 +15,14 @@ const flag = (argv, name, fallback) => { const i = argv.indexOf(name); return i 
 const has = (argv, name) => argv.includes(name);
 const out = (argv, value, text) => has(argv, '--json') || !text ? console.log(JSON.stringify(value, null, 2)) : text(value);
 
+export const USAGE = `usage: orchestra.mjs <command>
+  brief                                  routes, lessons and registry (free)
+  usage [--last n]                       measure this session's spend (free)
+  models update|list|rollback            model registry (free)
+  bench [--new] [--targets rt:model:effort,...]   small checked tasks (SPENDS model calls)
+  tune [--apply]                         Claude Code settings
+  pick|log|lesson|...                    routing and evidence (pair.mjs)`;
+
 // Recommended Claude Code settings, each tied to a measured cause in docs/usage-root-causes.md.
 export const TUNE = {
   // A full id: the short alias follows the installed CLI's table (2.1.251 sent `haiku` to the previous generation).
@@ -37,6 +45,8 @@ export function tune(settingsFile, apply) {
 
 export async function main(argv = process.argv.slice(2)) {
   const [command, sub] = argv;
+  // Help never spends: `bench --help` once ran a paid bench of every unbenched model (2026-10-11).
+  if (!command || command === 'help' || has(argv, '--help') || has(argv, '-h')) return console.log(USAGE);
   if (command === 'usage') {
     const file = flag(argv, '--session');
     const files = file ? [file] : latestSessions(flag(argv, '--project', projectDir()), Number(flag(argv, '--last', 1)));
