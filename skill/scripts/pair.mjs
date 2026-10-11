@@ -100,7 +100,7 @@ export function inspectCodexEvents(textOrLines) {
   const answer = events.filter(e => e.item?.type === 'agent_message').pop()?.item?.text ?? null;
   const tokens = events.filter(e => e.type === 'turn.completed').pop()?.usage ?? null;
   const cmds = events.filter(e => e.type === 'item.completed' && e.item?.type === 'command_execution').map(e => e.item);
-  const unstarted = cmds.filter(c => c.exit_code === -1 || /Failed to create .*process|helper_unknown_error/i.test(c.aggregated_output ?? '')).length;
+  const unstarted = cmds.filter(c => c.exit_code === -1 || c.exit_code !== 0 && /Failed to create .*process|helper_unknown_error/i.test(c.aggregated_output ?? '')).length;
   const errors = events.filter(e => e.type === 'error' || e.type === 'turn.failed').map(e => e.message ?? e.error?.message ?? '').join('\n');
   const blind = cmds.length > 0 && unstarted === cmds.length;
   const errorKind = blind ? 'sandbox' : answer ? null : /usage limit|quota|rate.limit/i.test(errors) ? 'quota' : 'runtime';

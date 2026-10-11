@@ -71,6 +71,9 @@ test('benchmark checks accept only the right answers', () => {
   assert.ok(extract.check('{"total":42,"currency":"ILS"}') && !extract.check('{"total":42.5,"currency":"ILS"}'));
   assert.ok(review.check('BLOCKING: removed the canRefund permission check') && !review.check('CLEAN'));
   assert.ok(trace.check('BLOCKING: delete subtracts points the return already took') && !trace.check('BLOCKING: points can go negative') && !trace.check('BLOCKING: no guard against negative or NaN points') && !trace.check('CLEAN'));
+  // Review of PR #4: a CLEAN that names the field, generic words without the mechanism, and right answers in other words.
+  assert.ok(!trace.check('CLEAN, nothing blocking; earnedBack is handled') && !trace.check('BLOCKING: points already negative on NaN') && !trace.check('BLOCKING: returned value of returnPart unchecked'));
+  assert.ok(trace.check('BLOCKING: deleteSale ignores the prior partial return') && trace.check('BLOCKING: deletes full earned despite earlier return') && trace.check('BLOCKING:Deleting partially returned sales deducts already reversed points.'));
 });
 
 test('a failed benchmark rules a model out of the role; a pass keeps it a trial', () => {

@@ -31,8 +31,8 @@ code had passed all six.
   `errorKind: sandbox` for such a run, and dispatch.md says to probe with one tiny packet first.
 - **`--help` never spends.** `orchestra.mjs bench --help` ran a paid bench of every unbenched model; any command with
   `--help` or `-h` now prints usage only.
-- **A fourth bench task, `trace-money`,** built from the loyalty defect. The first three tasks could not tell any model
-  apart (all 3/3). On this one, one sample each: Haiku 5.5 low answered BLOCKING for the wrong reason ("no guard
+- **A fourth bench task, `trace-money`,** built from the loyalty defect. The first three tasks separate only Haiku at low
+  effort from the rest (`benchmarks.md`). On this one, one sample each: Haiku 5.5 low answered BLOCKING for the wrong reason ("no guard
   against negative or NaN points") while Haiku high, Sonnet low, GPT-6-Luna low and GPT-6.1-Sol low named the
   double take-back. The first check matched "again" inside "against" and passed Haiku low; the check now needs whole
   words, and that row is re-scored as a fail.

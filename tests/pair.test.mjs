@@ -173,5 +173,7 @@ test('a Codex run whose shell never started is a sandbox failure, not a review',
   assert.equal(blind.usable, false); assert.equal(blind.errorKind, 'sandbox'); assert.equal(blind.unstarted, 2); assert.equal(blind.tokens.input_tokens, 130620);
   const seeing = inspectCodexEvents([cmd('31e5140\n', 0), cmd('', 1), ...end].join('\n'));   // rg finding nothing exits 1: still a working shell
   assert.equal(seeing.usable, true); assert.equal(seeing.unstarted, 0);
+  // A working `git diff` that prints the marker text (review of PR #4) is not a blind run.
+  assert.equal(inspectCodexEvents([cmd('+ /Failed to create .*process|helper_unknown_error/', 0), ...end].join('\n')).usable, true);
   assert.equal(inspectCodexEvents(JSON.stringify({type: 'turn.failed', message: "You've hit your usage limit"})).errorKind, 'quota');
 });

@@ -1,6 +1,6 @@
 # Benchmarks
 
-Three tiny tasks with one checkable answer each (`TASKS` in `skill/scripts/models.mjs`): locate the buggy line in a
+Tiny tasks with one checkable answer each (a fourth, `trace-money`, is below) (`TASKS` in `skill/scripts/models.mjs`): locate the buggy line in a
 split-the-total function (`find-bug`), extract a total and currency as JSON (`extract`), and judge a diff that removes
 a refund permission check (`review-diff`, right answer: BLOCKING with a reason). They measure reliability, speed and
 cost per model and effort, cheaply. They do not measure depth: passing them does not prove a model can review a
