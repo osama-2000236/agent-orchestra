@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest. Model Orchestra is small on purpose. Changes that make the skill simpler or more
+Thank you for your interest. Subagent Orchestra is small on purpose. Changes that make the skill simpler or more
 accurate are welcome. Changes that add machinery are less likely to be accepted.
 
 ## Before you open a pull request

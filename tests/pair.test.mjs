@@ -130,7 +130,7 @@ test('empty ledger environment uses the private default instead of an empty file
     fs.copyFileSync(path.resolve('skill/scripts/pair.mjs'), script);
     const input = path.join(dir, 'outcome.json');
     fs.writeFileSync(input, JSON.stringify(row('cheap')));
-    const output = spawnSync(process.execPath, [script, 'log', '--file', input], {encoding: 'utf8', env: {...process.env, MODEL_ORCHESTRA_LEDGER: ''}});
+    const output = spawnSync(process.execPath, [script, 'log', '--file', input], {encoding: 'utf8', env: {...process.env, SUBAGENT_ORCHESTRA_LEDGER: '', MODEL_ORCHESTRA_LEDGER: ''}});
     assert.equal(output.status, 0, output.stderr);
     assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'data', 'ledger.jsonl'), 'utf8')).model, 'cheap');
   } finally { fs.rmSync(dir, {recursive: true}); }

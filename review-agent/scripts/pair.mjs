@@ -6,6 +6,48 @@ import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(HERE, '..', 'data');
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+// Named bundles of the three knobs. Explicit --effort/--cost-mode/--allow-trial still win.
+// frugal: cheaply checked work (search, wording, UI suggestions) at low effort, priced per request.
+// balanced: the default; complete-task cost (worker + verification + rework) at medium effort.
+// thorough: quality ranking only, high effort; for risky or hard-to-verify work.
+export const PRESETS = {
+  frugal: {effort: 'low', costMode: 'worker-request', allowTrial: true},
+  balanced: {effort: 'medium', costMode: 'complete-task', allowTrial: false},
+  thorough: {effort: 'high', costMode: 'quality', allowTrial: false},
+};
+export function validateLesson(l) {
+  if (!l || typeof l !== 'object' || Array.isArray(l)) throw new Error('lesson must be an object');
+  for (const k of ['id', 'rule', 'evidence']) text(l[k], k);
+  if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(l.id)) throw new Error('lesson id must be kebab-case');
+  if (!['support', 'contradict'].includes(l.outcome)) throw new Error('lesson outcome must be support or contradict');
+  return l;
+}
+// A lesson is active after two supporting jobs and retired once contradictions catch up with support.
+export function lessonStatus(rows) {
+  const byId = new Map();
+  for (const l of rows) {
+    validateLesson(l);
+    const s = byId.get(l.id) ?? {id: l.id, rule: l.rule, scope: l.scope ?? '', support: 0, contradict: 0, evidence: []};
+    s.rule = l.rule; if (l.scope) s.scope = l.scope;
+    s[l.outcome]++; s.evidence.push(`${l.date ?? '?'} ${l.outcome}: ${l.evidence}`);
+    byId.set(l.id, s);
+  }
+  return [...byId.values()].map(s => ({...s, status: s.contradict && s.contradict >= s.support ? 'retired' : s.support >= 2 ? 'active' : 'provisional'}));
+}
+// Best verified route per role, for a quick start-of-job briefing.
+export function brief(rows, lessons = [], config = {}) {
+  const policy = {qualityFloor: 0.6, minTasks: 3, minClaims: 10, ...config.policy};
+  const routes = [...new Set(rows.filter(r => r.verified === true).map(r => `${r.role}\t${r.model}\t${r.effort ?? 'unknown'}`))]
+    .map(k => tally(rows, ...k.split('\t').slice(1, 2), k.split('\t')[0], k.split('\t')[2]))
+    .map(t => ({...t, evidence: t.tasks >= policy.minTasks && t.checked >= policy.minClaims ? 'observed' : 'trial'}));
+  const roles = [...new Set(routes.map(t => t.role))].sort().map(role => {
+    const ranked = routes.filter(t => t.role === role).sort((a, b) => b.score - a.score || (a.completeCost.usd ?? Infinity) - (b.completeCost.usd ?? Infinity));
+    const top = ranked.find(t => t.score >= policy.qualityFloor);
+    return {role, model: top?.model ?? 'lead', effort: top?.effort ?? '-', score: top ? +top.score.toFixed(3) : null, tasks: top?.tasks ?? 0, evidence: top?.evidence ?? 'none', alternatives: ranked.length - (top ? 1 : 0)};
+  });
+  const status = lessonStatus(lessons);
+  return {roles, lessons: {active: status.filter(s => s.status === 'active'), provisional: status.filter(s => s.status === 'provisional'), retired: status.filter(s => s.status === 'retired').length}};
+}
 const finite = (v, label) => {
   if (!Number.isFinite(v) || v < 0) throw new Error(`${label} must be a nonnegative number`);
 };
@@ -137,12 +179,18 @@ export function cli(argv = process.argv.slice(2)) {
     const key = raw[i];
     if (['--json', '--allow-trial'].includes(key)) options[key.slice(2)] = true;
     else if (key.startsWith('--')) {
-      if (!['--config', '--ledger', '--effort', '--risk', '--cost-mode', '--max-task-usd', '--input-tokens', '--output-tokens', '--cache-read-tokens', '--cache-write-tokens', '--file'].includes(key)) throw new Error(`unknown option ${key}`);
+      if (!['--config', '--ledger', '--effort', '--risk', '--cost-mode', '--max-task-usd', '--input-tokens', '--output-tokens', '--cache-read-tokens', '--cache-write-tokens', '--file', '--preset', '--lessons'].includes(key)) throw new Error(`unknown option ${key}`);
       if (!raw[i + 1] || raw[i + 1].startsWith('--')) throw new Error(`missing value for ${key}`);
       options[key.slice(2)] = raw[++i];
     } else args.push(key);
   }
-  const ledger = options.ledger || process.env.MODEL_ORCHESTRA_LEDGER || path.join(DATA, 'ledger.jsonl');
+  if (options.preset !== undefined && !PRESETS[options.preset]) throw new Error(`unknown preset ${options.preset}; use ${Object.keys(PRESETS).join(', ')}`);
+  const preset = PRESETS[options.preset] ?? {};
+  const ledger = options.ledger || process.env.SUBAGENT_ORCHESTRA_LEDGER || process.env.MODEL_ORCHESTRA_LEDGER || path.join(DATA, 'ledger.jsonl');
+  const lessonFile = options.lessons || process.env.SUBAGENT_ORCHESTRA_LESSONS || path.join(DATA, 'lessons.jsonl');
+  const readJsonl = (file, check) => fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(l => l.trim()).map((l, i) => {
+    try { return check(JSON.parse(l)); } catch (e) { throw new Error(`${file}:${i + 1}: ${e.message}`); }
+  }) : [];
   const exists = fs.existsSync(ledger);
   const read = exists ? ledger : path.join(DATA, 'ledger.example.jsonl');
   const rows = fs.existsSync(read) ? fs.readFileSync(read, 'utf8').split(/\r?\n/).filter(l => l.trim()).map((l, i) => {
@@ -163,16 +211,34 @@ export function cli(argv = process.argv.slice(2)) {
     const config = options.config ? JSON.parse(fs.readFileSync(options.config, 'utf8').replace(/^\uFEFF/, '')) : {};
     const request = {};
     for (const [flag, field] of [['input-tokens', 'inputTokens'], ['output-tokens', 'outputTokens'], ['cache-read-tokens', 'cacheReadTokens'], ['cache-write-tokens', 'cacheWriteTokens']]) if (options[flag] !== undefined) request[field] = Number(options[flag]);
-    const result = plan({rows: exists ? rows : [], role: args[0], models: args.slice(1), config, effort: options.effort, risk: options.risk, costMode: options['cost-mode'], allowTrial: options['allow-trial'], request, maxTaskUsd: options['max-task-usd'] === undefined ? undefined : Number(options['max-task-usd'])});
+    const result = plan({rows: exists ? rows : [], role: args[0], models: args.slice(1), config, effort: options.effort ?? preset.effort, risk: options.risk, costMode: options['cost-mode'] ?? preset.costMode, allowTrial: options['allow-trial'] ?? preset.allowTrial, request, maxTaskUsd: options['max-task-usd'] === undefined ? undefined : Number(options['max-task-usd'])});
     const out = {ledger: exists ? read : null, seedUsedForRouting: false, ...result};
     if (options.json) console.log(JSON.stringify(out, null, 2));
     else { console.table(result.candidates.map(c => ({model: c.model, effort: c.effort, checked: c.checked, tasks: c.tasks, score: +c.score.toFixed(3), evidence: c.evidence, estimatedUsd: c.cost.usd, eligible: c.eligible}))); console.log(`pick: ${result.pick ?? 'lead'}; ${result.decision}`); console.log(result.limitation); }
+  } else if (command === 'lesson') {
+    const l = validateLesson(JSON.parse(options.file ? fs.readFileSync(options.file, 'utf8').replace(/^\uFEFF/, '') : args.join(' ')));
+    l.date ??= new Date().toISOString().slice(0, 10);
+    fs.mkdirSync(path.dirname(lessonFile), {recursive: true});
+    fs.appendFileSync(lessonFile, JSON.stringify(l) + '\n');
+    const now = lessonStatus(readJsonl(lessonFile, validateLesson)).find(s => s.id === l.id);
+    console.log(JSON.stringify({lesson: l.id, status: now.status, support: now.support, contradict: now.contradict, file: lessonFile}));
+  } else if (command === 'brief') {
+    const config = options.config ? JSON.parse(fs.readFileSync(options.config, 'utf8').replace(/^\uFEFF/, '')) : {};
+    const out = {ledger: exists ? read : null, lessonFile, ...brief(exists ? rows : [], readJsonl(lessonFile, validateLesson), config)};
+    if (options.json) console.log(JSON.stringify(out, null, 2));
+    else {
+      console.log(exists ? `routes from ${read}` : 'no personal ledger yet: every role starts as a trial (see the starting routes in SKILL.md)');
+      if (out.roles.length) console.table(out.roles);
+      for (const s of out.lessons.active) console.log(`ACTIVE  ${s.id}: ${s.rule}${s.scope ? ` [${s.scope}]` : ''} (+${s.support}/-${s.contradict})`);
+      for (const s of out.lessons.provisional) console.log(`TRIAL   ${s.id}: ${s.rule} (+${s.support}/-${s.contradict})`);
+      if (out.lessons.retired) console.log(`${out.lessons.retired} retired lesson(s) hidden`);
+    }
   } else if (command === 'stats') {
     const pairs = [...new Set(rows.map(r => `${r.model}\t${r.role}\t${r.effort ?? 'unknown'}`))];
     const out = {ledger: read, exampleOnly: !exists, rows: pairs.map(k => tally(rows, ...k.split('\t'), true))};
     if (options.json) console.log(JSON.stringify(out, null, 2));
     else { console.log(`ledger: ${read}${exists ? '' : ' (historical example; not used to route)'}`); console.table(out.rows); }
-  } else throw new Error('usage: pair.mjs pick <role> [models...] [--config file --effort medium --allow-trial --json] | stats | log --file outcome.json | inspect --file report.json');
+  } else throw new Error('usage: pair.mjs brief [--json] | pick <role> [models...] [--config file --preset frugal|balanced|thorough --effort medium --cost-mode complete-task|worker-request|quality --max-task-usd n --allow-trial --risk high --json] | log --file outcome.json | lesson --file lesson.json | stats | inspect --file report.json');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { cli(); } catch (e) { console.error(e.message); process.exitCode = 1; }
