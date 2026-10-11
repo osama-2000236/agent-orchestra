@@ -17,16 +17,16 @@ cents). Once per machine: `ORC tune` shows two Claude Code settings; `ORC tune -
 
 ## 2. Where usage really goes (measured, so act on it)
 
-From 66 sessions on one machine over 14 days (`docs/usage-root-causes.md`): the leader spent **92%** of
-list-price usage, re-reading **375k** context tokens per turn on average; subagents that inherited the leader's
-Opus cost **$135** against **$6** for the same number of Haiku requests. So:
+From 66 sessions on one machine over 14 days (`docs/usage-root-causes.md`): the leader spent **90%** of
+list-price usage, re-reading **373k** context tokens per turn on average; subagents that inherited the leader's
+Opus cost **$177** against **$6.6** for the same number of Haiku requests. So:
 
 - **Leader turns are the expensive unit.** Each one re-reads the whole context. Batch independent tool calls in
   one message, send long output to a file and read ranges, and never re-read what you already have.
 - **Delegate the reading.** Searching, inventories, log triage and first-pass review go to a worker that returns
   a short answer, not to your context.
 - **Name a model on every spawn.** Without one a subagent may run on the leader's model. `tune` sets
-  `CLAUDE_CODE_SUBAGENT_MODEL=haiku` as the default for spawns that forget.
+  `CLAUDE_CODE_SUBAGENT_MODEL=claude-haiku-5-5` as the default for spawns that forget.
 - **Keep the context small.** Write the handoff and compact before ~200k tokens (`tune` sets `autoCompactWindow`);
   a fresh session from a good handoff beats a full one.
 - **Merge tiny tasks.** Each new worker pays a cold cache write (~6-40k tokens); one packet with three questions

@@ -16,7 +16,7 @@ All notable changes to this project are recorded here. The format follows
 - `orchestra.mjs usage`: measures a Claude Code session from its transcript (by agent and model, cache reads per leader turn, compactions, heavy tool results, subagents inheriting the leader's model), read locally.
 - `orchestra.mjs models discover|update|list|rollback`: lists the models your runtimes offer, fills in prices from the public OpenRouter catalogue (`--offline` skips it), keeps each previous registry in `data/history/`, and restores it with `rollback`. `data/overrides.json` overrides a model per key.
 - `orchestra.mjs bench`: three small checked tasks per model (`--new` for models not yet benched), recorded in `data/bench.jsonl`. A failed bench rules a model out of routing.
-- `orchestra.mjs tune`: shows, or with `--apply` sets, `CLAUDE_CODE_SUBAGENT_MODEL=haiku` and `autoCompactWindow=200000`, keeping any value already set and a backup of the old file.
+- `orchestra.mjs tune`: shows, or with `--apply` sets, `CLAUDE_CODE_SUBAGENT_MODEL=claude-haiku-5-5` and `autoCompactWindow=200000`, keeping any value already set and a backup of the old file.
 - `skill/references/managed-agents.md`: what was adapted from Claude Managed Agents, and what was not copied.
 - Measured runtime traps in `skill/references/dispatch.md`: aliases that follow the installed CLI, hooks that ride along into workers, and side requests billed to another model.
 - `docs/usage-root-causes.md`: the measured causes of exhausted usage, with the fix for each.

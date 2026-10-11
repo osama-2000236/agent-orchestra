@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {scan, price, diagnose, sessionReport} from '../skill/scripts/usage.mjs';
+import {scan, price, priceFor, diagnose, sessionReport} from '../skill/scripts/usage.mjs';
 import {catalogueId, tierOf, newestClaude, buildRegistry, diffRegistry, saveRegistry, rollback, TASKS} from '../skill/scripts/models.mjs';
 import {tune} from '../skill/scripts/orchestra.mjs';
 import {plan} from '../skill/scripts/pair.mjs';
@@ -51,7 +51,7 @@ test('model ids map to the public catalogue and newest Claude tiers are chosen b
 test('registry update keeps provider prices and overrides, marks vanished models, and rolls back', () => {
   const found = d => ({discoveredAt: `${d}T00:00:00Z`, hardware: {}, prices: {'openai/gpt-6-luna': {input: 0.1, output: 0.5, source: 'https://openrouter.ai/api/v1/models'}},
     runtimes: [{runtime: 'codex', pool: 'chatgpt', models: [{id: 'gpt-6-luna', efforts: ['low']}]}, {runtime: 'claude-code', pool: 'claude', models: [{id: 'claude-haiku-5-5'}]}]});
-  const first = buildRegistry(found('2026-10-11'), {models: {'claude-haiku-5-5': {pricing: {input: 0.1, output: 0.5, source: 'https://platform.claude.com/docs/en/about-claude/pricing', checkedAt: '2026-10-11'}}, 'old-model': {id: 'old-model'}}}, {'codex:gpt-6-luna': {note: 'mine'}});
+  const first = buildRegistry(found('2026-10-11'), {models: {'claude-haiku-5-5': {pricing: {input: 0.1, output: 0.5, source: 'https://platform.claude.com/docs/en/about-claude/pricing', checkedAt: '2026-10-11'}}, 'old-model': {id: 'old-model', runtime: 'codex'}}}, {'codex:gpt-6-luna': {note: 'mine'}});
   assert.equal(first.models['claude-haiku-5-5'].pricing.source, 'https://platform.claude.com/docs/en/about-claude/pricing');
   assert.equal(first.models['codex:gpt-6-luna'].tier, 'cheap');
   assert.equal(first.models['codex:gpt-6-luna'].note, 'mine');
@@ -89,4 +89,15 @@ test('tune adds only missing settings and backs up the file it changes', () => {
   const after = JSON.parse(fs.readFileSync(file, 'utf8'));
   assert.deepEqual([after.model, after.env.CLAUDE_CODE_SUBAGENT_MODEL, after.autoCompactWindow], ['opus', 'sonnet', 200000]);
   assert.deepEqual(tune(file, true).changes, []);
+});
+
+test('streamed blocks of one request count once with their final usage, and dated ids find their price', () => {
+  const s = scan([turn('r1', 'claude-haiku-4-5-20251001', {input_tokens: 5, output_tokens: 2}), turn('r1', 'claude-haiku-4-5-20251001', {input_tokens: 5, output_tokens: 500})]);
+  assert.deepEqual([s.turns, s.models['claude-haiku-4-5-20251001'].output, s.models['claude-haiku-4-5-20251001'].input], [1, 500, 5]);
+  assert.equal(priceFor({'claude-haiku-4-5': {pricing: {input: 1, output: 5}}}, 'claude-haiku-4-5-20251001').output, 5);
+});
+
+test('a model that comes back after going missing is available again', () => {
+  const r = buildRegistry({discoveredAt: '2026-10-12T00:00:00Z', hardware: {}, prices: {}, runtimes: [{runtime: 'claude-code', pool: 'claude', models: [{id: 'claude-haiku-5-5'}]}]}, {models: {'claude-haiku-5-5': {runtime: 'claude-code', available: false}}});
+  assert.equal(r.models['claude-haiku-5-5'].available, true);
 });

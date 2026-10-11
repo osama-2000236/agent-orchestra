@@ -17,7 +17,8 @@ const out = (argv, value, text) => has(argv, '--json') || !text ? console.log(JS
 
 // Recommended Claude Code settings, each tied to a measured cause in docs/usage-root-causes.md.
 export const TUNE = {
-  env: {CLAUDE_CODE_SUBAGENT_MODEL: 'haiku'},
+  // A full id: the short alias follows the installed CLI's table (2.1.251 sent `haiku` to the previous generation).
+  env: {CLAUDE_CODE_SUBAGENT_MODEL: 'claude-haiku-5-5'},
   autoCompactWindow: 200000,
 };
 export function tune(settingsFile, apply) {
@@ -55,7 +56,8 @@ export async function main(argv = process.argv.slice(2)) {
     if (sub === 'discover' || sub === 'update') {
       const found = await discover({fetchCatalogue: !has(argv, '--offline')});
       if (sub === 'discover') return out(argv, found, f => { console.log(JSON.stringify(f.hardware)); for (const r of f.runtimes) console.log(`${r.runtime} [${r.pool}]: ${r.models.map(m => m.id).join(', ') || '(no models listed)'}`); });
-      const previous = readJson(file) ?? {models: {}};
+      // First run: start from the shipped provider prices (cache writes, long-prompt tiers), not only the public catalogue.
+      const previous = readJson(file) ?? readJson(path.join(HERE, '..', 'data', 'config.example.json')) ?? {models: {}};
       const registry = buildRegistry(found, previous, readJson(path.join(DATA, 'overrides.json')) ?? {});
       const changes = diffRegistry(previous, registry);
       saveRegistry(DATA, registry);

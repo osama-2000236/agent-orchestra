@@ -8,29 +8,31 @@ const lines = file => fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).
 
 // One transcript -> per-model token totals (deduplicated by API request), compactions, and the heaviest tool results.
 export function scan(records) {
-  const seen = new Set(); const models = {}; const toolNames = new Map(); const tools = {};
-  let compactions = 0, turns = 0, first, last;
+  // One request is logged once per streamed content block with a growing usage, so keep the largest of each field.
+  const requests = new Map(); const models = {}; const toolNames = new Map(); const tools = {};
+  let compactions = 0, first, last;
   for (const r of records) {
     if (r.timestamp) { first ??= r.timestamp; last = r.timestamp; }
-    if (r.isCompactSummary || r.subtype === 'compact_boundary') compactions += r.subtype === 'compact_boundary' ? 1 : 0;
+    if (r.subtype === 'compact_boundary') compactions++;
     const m = r.message;
     if (r.type === 'assistant' && m?.usage && m.model && m.model !== '<synthetic>') {
       for (const c of Array.isArray(m.content) ? m.content : []) if (c.type === 'tool_use') toolNames.set(c.id, c.name);
-      const key = r.requestId ?? m.id;
-      if (seen.has(key)) continue;
-      seen.add(key); turns++;
-      const u = m.usage; const t = models[m.model] ??= {requests: 0, input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0};
-      t.requests++; t.input += u.input_tokens ?? 0; t.output += u.output_tokens ?? 0; t.cacheRead += u.cache_read_input_tokens ?? 0;
-      const w1 = u.cache_creation?.ephemeral_1h_input_tokens ?? 0;
-      t.cacheWrite1h += w1; t.cacheWrite5m += (u.cache_creation_input_tokens ?? 0) - w1;
+      const u = m.usage, w1 = u.cache_creation?.ephemeral_1h_input_tokens ?? 0;
+      const now = {input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheWrite1h: w1, cacheWrite5m: (u.cache_creation_input_tokens ?? 0) - w1};
+      const key = r.requestId ?? m.id, old = requests.get(key);
+      requests.set(key, {model: m.model, ...Object.fromEntries(Object.entries(now).map(([k, v]) => [k, Math.max(v, old?.[k] ?? 0)]))});
     }
     if (r.type === 'user' && Array.isArray(m?.content)) for (const c of m.content) if (c.type === 'tool_result') {
       const size = JSON.stringify(c.content ?? '').length; const name = toolNames.get(c.tool_use_id) ?? '?';
       const s = tools[name] ??= {calls: 0, chars: 0, max: 0}; s.calls++; s.chars += size; s.max = Math.max(s.max, size);
     }
   }
+  for (const {model, ...u} of requests.values()) {
+    const t = models[model] ??= {requests: 0, input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0};
+    t.requests++; for (const k of Object.keys(u)) t[k] += u[k];
+  }
   const minutes = first && last ? +((Date.parse(last) - Date.parse(first)) / 60000).toFixed(1) : null;
-  return {models, tools, compactions, turns, minutes};
+  return {models, tools, compactions, turns: requests.size, minutes};
 }
 
 // API-equivalent list price; subscriptions consume quota in proportion, not dollars. Unknown model -> null.
@@ -40,6 +42,9 @@ export function price(t, p) {
   return +((t.input * p.input + t.output * p.output + t.cacheRead * (p.cacheRead ?? p.input * 0.1) + t.cacheWrite5m * write5 + t.cacheWrite1h * write1h) / 1e6).toFixed(4);
 }
 
+// Transcripts can name dated ids (claude-haiku-4-5-20251001); the registry keys have no date.
+export const priceFor = (pricing, model) => { const m = pricing[model] ?? pricing[model.replace(/-\d{8}$/, '')]; return m?.pricing ?? m; };
+
 export function sessionReport(file, pricing = {}) {
   const lead = scan(lines(file));
   const dir = path.join(path.dirname(file), path.basename(file, '.jsonl'), 'subagents');
@@ -48,7 +53,7 @@ export function sessionReport(file, pricing = {}) {
     const meta = fs.existsSync(metaFile) ? JSON.parse(fs.readFileSync(metaFile, 'utf8')) : {};
     return {agent: f.replace(/\.jsonl$/, ''), description: meta.description ?? '', requested: meta.model ?? 'inherit', ...scan(lines(path.join(dir, f)))};
   }) : [];
-  const row = (who, s) => Object.entries(s.models).map(([model, t]) => ({who, model, ...t, usd: price(t, pricing[model]?.pricing ?? pricing[model])}));
+  const row = (who, s) => Object.entries(s.models).map(([model, t]) => ({who, model, ...t, usd: price(t, priceFor(pricing, model))}));
   const rows = [...row('lead', lead), ...agents.flatMap(a => row(a.agent + ' ' + a.description.slice(0, 40), a))];
   const sum = (f) => rows.reduce((n, r) => n + (r[f] ?? 0), 0);
   const total = {usd: +sum('usd').toFixed(2), input: sum('input'), output: sum('output'), cacheRead: sum('cacheRead'), cacheWrite: sum('cacheWrite5m') + sum('cacheWrite1h')};

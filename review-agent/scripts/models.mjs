@@ -7,6 +7,8 @@ import {spawnSync} from 'node:child_process';
 
 const HOME = os.homedir();
 const run = (cmd, args, opts = {}) => {
+  // cmd.exe joins arguments unquoted, so quote the ones with spaces (paths); safe() already keeps names plain.
+  if (process.platform === 'win32') args = args.map(a => /s/.test(a) ? `"${a}"` : a);
   const r = spawnSync(cmd, args, {encoding: 'utf8', timeout: opts.timeout ?? 15000, shell: process.platform === 'win32', input: opts.input, cwd: opts.cwd, env: {...process.env, ...opts.env}});
   return {ok: r.status === 0 && !r.error, out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim() || r.error?.message || ''};
 };
@@ -90,9 +92,9 @@ export function buildRegistry(found, previous = {}, overrides = {}) {
     const listed = cid ? found.prices?.[cid] : undefined;
     const pricing = old.pricing?.source && !old.pricing.source.includes('openrouter') ? old.pricing
       : rt.pool === 'local' ? {input: 0, output: 0, source: 'local hardware', checkedAt: found.discoveredAt.slice(0, 10), maxAgeDays: 3650} : listed ? {...listed, checkedAt: found.discoveredAt.slice(0, 10), maxAgeDays: 30} : old.pricing;
-    models[key] = {...old, runtime: rt.runtime, pool: rt.pool, id: m.id, efforts: m.efforts ?? old.efforts, defaultEffort: m.defaultEffort ?? old.defaultEffort, context: m.context ?? listed?.context ?? old.context, pricing, tier: tierOf(pricing), seen: found.discoveredAt.slice(0, 10), ...overrides[key]};
+    models[key] = {...old, runtime: rt.runtime, pool: rt.pool, id: m.id, efforts: m.efforts ?? old.efforts, defaultEffort: m.defaultEffort ?? old.defaultEffort, context: m.context ?? listed?.context ?? old.context, pricing, tier: tierOf(pricing), seen: found.discoveredAt.slice(0, 10), available: true, ...overrides[key]};
   }
-  for (const [key, m] of Object.entries(previous.models ?? {})) if (!models[key]) models[key] = {...m, available: false};
+  for (const [key, m] of Object.entries(previous.models ?? {})) if (!models[key] && m.runtime) models[key] = {...m, available: false};
   return {updatedAt: found.discoveredAt, hardware: found.hardware, models};
 }
 
@@ -129,12 +131,12 @@ export function rollback(dir) {
 export const TASKS = [
   {id: 'find-bug', role: 'review-code', prompt: 'Which line number has the bug? Reply with the number only.\n1 function split(total, n) {\n2   const part = Math.floor(total / n);\n3   const out = Array(n).fill(part);\n4   out[0] += total - part * (n - 1);\n5   return out;\n6 }\n// split must return n integers that sum to total', check: a => /^\D*4\D*$/.test(a)},
   {id: 'extract', role: 'scout', prompt: 'Return only JSON {"total":number,"currency":string} for: "Invoice 88 - 3 boxes at 12.50 each, shipping 4.50, total due 42.00 ILS".', check: a => { try { const j = JSON.parse(a.replace(/^[^{]*/, '').replace(/[^}]*$/, '')); return j.total === 42 && /^ILS$/i.test(j.currency); } catch { return false; } }},
-  {id: 'review-diff', role: 'review-code', prompt: 'Review this diff. Reply BLOCKING:<reason in 5 words> or CLEAN.\n-  if (!user.canRefund) throw new Error("denied");\n   refund(order.id, order.total);\n+  log("refund", order.id);', check: a => /BLOCKING/i.test(a) && /(permission|check|auth|denied|canRefund|guard)/i.test(a)},
+  {id: 'review-diff', role: 'review-code', prompt: 'Review this diff. Reply BLOCKING:<reason in 5 words> or CLEAN.\n-  if (!user.canRefund) throw new Error("denied");\n   refund(order.id, order.total);\n+  log("refund", order.id);', check: a => /BLOCKING/i.test(a) && /(permission|auth|denied|canRefund|guard|access)/i.test(a)},
 ];
 
 // One prompt through one runtime; returns the answer, seconds and API-equivalent cost when the runtime reports it.
 export function ask(runtime, model, effort, prompt, cwd) {
-  const t0 = Date.now(); safe(model); safe(effort);
+  const t0 = Date.now(); safe(String(model)); safe(String(effort));
   if (runtime === 'claude-code') {
     const r = run('claude', ['-p', '--model', model, '--effort', effort, '--output-format', 'json', '--tools', '""', '--no-session-persistence', '--strict-mcp-config', '--setting-sources', 'local'], {input: prompt, cwd, timeout: 240000});
     const j = (() => { try { return JSON.parse(r.out); } catch { return null; } })();

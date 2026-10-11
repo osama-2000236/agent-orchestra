@@ -56,7 +56,7 @@ registry or `--config` file is a candidate.
 `node skill/scripts/orchestra.mjs tune [--apply] [--settings <file>]`
 
 - Default settings file: `~/.claude/settings.json`.
-- It sets `env.CLAUDE_CODE_SUBAGENT_MODEL` to `haiku`, so a subagent spawned without a model runs on Haiku rather than
+- It sets `env.CLAUDE_CODE_SUBAGENT_MODEL` to `claude-haiku-5-5`, so a subagent spawned without a model runs on Haiku rather than
   the leader's model, and `autoCompactWindow` to `200000`.
 - It never overwrites a value you have already set.
 - Without `--apply` it only prints what it would change.

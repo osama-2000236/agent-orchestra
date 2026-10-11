@@ -11,8 +11,8 @@ Keep your chosen model as the leader; send the reading, searching and first-pass
 
 From 66 Claude Code sessions on one machine over the 14 days to 11 October 2026, at list-price equivalents ([details](docs/usage-root-causes.md)):
 
-- The leader's own turns were **92%** of the $1,937 total, and each leader turn re-read **375k** cached context tokens on average.
-- Subagents that inherited the leader's Opus model cost **$135** for 2,532 requests. Haiku 5.5 subagents cost **$6** for 2,573 requests.
+- The leader's own turns were **90%** of the $1,989 total, and each leader turn re-read **373k** cached context tokens on average.
+- Subagents that inherited the leader's Opus model cost **$177** for 2,532 requests. Haiku 5.5 subagents cost **$6.6** for 2,599 requests.
 - In a checked review, Haiku 5.5 at low effort called a removed permission check "CLEAN". At high effort it caught the problem. Effort matters as much as the model.
 - Claude, ChatGPT/Codex and local models have separate usage limits. One exhausted limit stopped a reviewer, and another stopped the second vendor.
 

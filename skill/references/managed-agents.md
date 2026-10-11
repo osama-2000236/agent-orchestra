@@ -18,7 +18,7 @@ docs carry no open licence); the ideas below are reimplemented locally, and no p
 Claude Code facts used (code.claude.com docs, same date):
 
 - A subagent's model comes from the invocation's `model`, then its frontmatter `model`, then
-  `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation's model. `tune` sets that variable to `haiku` so a
+  `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation's model. `tune` sets that variable to `claude-haiku-5-5` so a
   forgotten `model` costs Haiku, not the leader's price. Built-in Explore and Plan agents follow the same chain.
 - Subagents "count toward the same usage limits as your main conversation"; the costs page recommends routing simple
   tasks to Haiku and keeping agent teams small.
