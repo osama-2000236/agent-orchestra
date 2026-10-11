@@ -72,7 +72,7 @@ node skill/scripts/pair.mjs lesson --file lesson.json
 
 Other knobs:
 
-- `--effort low|medium|high|xhigh|max`. Explicit flags beat the preset.
+- `--effort low|medium|high|xhigh|max`. Explicit `--effort` and `--cost-mode` beat the preset; `--allow-trial` only adds permission.
 - `--cost-mode complete-task|worker-request|quality`.
 - `--max-task-usd <n>`: a route whose cost is unknown or above this per-task budget is not picked.
 - `--risk high`: the decision stays with the lead, and independent reviewers count as evidence only.

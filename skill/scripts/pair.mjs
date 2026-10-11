@@ -6,9 +6,9 @@ import {fileURLToPath} from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(HERE, '..', 'data');
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
-// Named bundles of the three knobs. Explicit --effort/--cost-mode/--allow-trial still win.
+// Named bundles of the three knobs. Explicit --effort and --cost-mode still win; --allow-trial can only add permission.
 // frugal: cheaply checked work (search, wording, UI suggestions) at low effort, priced per request.
-// balanced: the default; complete-task cost (worker + verification + rework) at medium effort.
+// balanced: complete-task cost (worker + verification + rework) at medium effort.
 // thorough: quality ranking only, high effort; for risky or hard-to-verify work.
 export const PRESETS = {
   frugal: {effort: 'low', costMode: 'worker-request', allowTrial: true},
@@ -184,7 +184,7 @@ export function cli(argv = process.argv.slice(2)) {
       options[key.slice(2)] = raw[++i];
     } else args.push(key);
   }
-  if (options.preset !== undefined && !PRESETS[options.preset]) throw new Error(`unknown preset ${options.preset}; use ${Object.keys(PRESETS).join(', ')}`);
+  if (options.preset !== undefined && !Object.hasOwn(PRESETS, options.preset)) throw new Error(`unknown preset ${options.preset}; use ${Object.keys(PRESETS).join(', ')}`);
   const preset = PRESETS[options.preset] ?? {};
   const ledger = options.ledger || process.env.SUBAGENT_ORCHESTRA_LEDGER || process.env.MODEL_ORCHESTRA_LEDGER || path.join(DATA, 'ledger.jsonl');
   const lessonFile = options.lessons || process.env.SUBAGENT_ORCHESTRA_LESSONS || path.join(DATA, 'lessons.jsonl');

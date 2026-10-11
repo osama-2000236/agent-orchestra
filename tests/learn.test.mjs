@@ -59,3 +59,6 @@ test('lesson and brief commands round-trip through a local file on a path with s
     assert.deepEqual(out.roles, []);
   } finally { fs.rmSync(dir, {recursive: true}); }
 });
+test('a preset name inherited from Object is refused', () => {
+  assert.notEqual(pair(['pick', 'review-ui', '--preset', 'toString']).status, 0);
+});

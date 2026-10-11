@@ -45,7 +45,8 @@ Customize with `PAIR pick <role> <models...> --config <your config.json>` plus:
   cheaply checked work); balanced = medium effort, complete-task cost (worker + verification + rework);
   thorough = high effort, quality ranking only.
 - `--effort low..max`, `--cost-mode complete-task|worker-request|quality`, `--max-task-usd <n>`, `--risk high`
-  (keeps the decision with the lead) and token-shape flags. Explicit flags beat the preset.
+  (keeps the decision with the lead) and token-shape flags. Explicit `--effort` and `--cost-mode` beat the preset;
+  `--allow-trial` can only add trial permission, so use `balanced` or `thorough` when trials must stay off.
 - Prices live in `data/config.example.json` with their source and date; a snapshot older than 30 days makes
   cost "unknown", never "cheap". Copy it, refresh it from the cited page, then point `--config` at the copy.
 
